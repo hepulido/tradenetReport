@@ -3,7 +3,7 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import {
   insertCompanySchema, insertProjectSchema, insertTransactionSchema,
-  insertWeeklyReportSchema, type ReportSummary
+  insertWeeklyReportSchema, insertLaborEntrySchema, type ReportSummary
 } from "@shared/schema";
 
 export async function registerRoutes(
@@ -115,6 +115,31 @@ export async function registerRoutes(
       res.status(201).json(transaction);
     } catch (error) {
       res.status(400).json({ error: "Invalid transaction data" });
+    }
+  });
+
+  // Labor Entries
+  app.get("/api/companies/:companyId/labor", async (req, res) => {
+    try {
+      const { projectId, startDate, endDate } = req.query;
+      const entries = await storage.getLaborEntries(req.params.companyId, {
+        projectId: projectId as string | undefined,
+        startDate: startDate as string | undefined,
+        endDate: endDate as string | undefined
+      });
+      res.json(entries);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch labor entries" });
+    }
+  });
+
+  app.post("/api/companies/:companyId/labor", async (req, res) => {
+    try {
+      const data = insertLaborEntrySchema.parse({ ...req.body, companyId: req.params.companyId });
+      const entry = await storage.createLaborEntry(data);
+      res.status(201).json(entry);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid labor entry data" });
     }
   });
 
