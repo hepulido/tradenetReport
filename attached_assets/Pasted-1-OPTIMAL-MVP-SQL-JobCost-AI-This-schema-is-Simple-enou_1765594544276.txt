@@ -1,0 +1,121 @@
+1️⃣ OPTIMAL MVP SQL (JobCost AI)
+
+This schema is:
+
+Simple enough to build fast
+
+Powerful enough to sell
+
+Ready for QuickBooks later
+
+Built around weekly reports (your money-maker)
+
+Core Tables
+companies
+CREATE TABLE companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+projects
+CREATE TABLE projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id),
+  name TEXT NOT NULL,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT now()
+);
+
+transactions
+
+(All costs + revenue live here for MVP)
+
+CREATE TABLE transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id),
+  project_id UUID REFERENCES projects(id),
+  date DATE NOT NULL,
+  vendor TEXT,
+  category TEXT, -- material, labor, equipment, revenue
+  description TEXT,
+  amount NUMERIC NOT NULL,
+  source TEXT, -- csv, manual, quickbooks
+  created_at TIMESTAMP DEFAULT now()
+);
+
+
+✅ Labor stays here for now
+✅ Simple and flexible
+✅ No dependency on perfect payroll data
+
+Import Pipeline (CRITICAL)
+import_files
+CREATE TABLE import_files (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id),
+  filename TEXT,
+  source TEXT, -- csv, quickbooks
+  status TEXT DEFAULT 'pending',
+  uploaded_at TIMESTAMP DEFAULT now()
+);
+
+import_rows (raw staging)
+CREATE TABLE import_rows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  import_file_id UUID REFERENCES import_files(id),
+  raw_data JSONB,
+  mapped BOOLEAN DEFAULT false
+);
+
+
+🔥 This is what lets you:
+
+accept messy CSVs
+
+map later
+
+look “automatic” even when manual
+
+Weekly Reports (The Product)
+weekly_reports
+CREATE TABLE weekly_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id),
+  week_start DATE,
+  week_end DATE,
+  summary JSONB, -- totals, margins, alerts
+  created_at TIMESTAMP DEFAULT now()
+);
+
+
+Example summary:
+
+{
+  "total_cost": 125430,
+  "total_revenue": 165000,
+  "gross_margin": 0.24,
+  "alerts": [
+    "Material costs increased 18%",
+    "Project A margin below 15%"
+  ],
+  "projects": {
+    "Project A": { "cost": 56000, "margin": 0.12 },
+    "Project B": { "cost": 69430, "margin": 0.31 }
+  }
+}
+
+OPTIONAL (Phase 2)
+
+You can add later:
+
+labor_entries (hours)
+
+vendors
+
+pdf_reports
+
+qbo_tokens (OAuth)
+
+Not needed to sell v1.

@@ -1,0 +1,204 @@
+0) What we’re building (MVP that can grow)
+
+A mobile-friendly web CRM that supports:
+
+Company → Projects → Weekly Reports
+
+Seed demo data (to sell)
+
+Later: QuickBooks + Email ingestion (same DB, no rewrite)
+
+1) Replit setup (fast + clean)
+
+Create a new Replit project:
+
+Repo layout (single repo, 2 apps)
+jobcost-ai/
+  server/
+    src/
+      index.js
+      routes/
+        companies.js
+        projects.js
+        reports.js
+      services/
+        supabase.js
+        reportService.js
+        seedService.js
+    package.json
+    .env
+  client/
+    (Replit Builder app / or Vite React if you prefer)
+
+
+If you want fastest UI, use Replit “Website / React” for client/ and Node for server/.
+
+2) Supabase: create tables (paste this SQL)
+
+Go to Supabase → SQL Editor → New query and paste:
+
+-- Enable UUIDs
+create extension if not exists "pgcrypto";
+
+-- Companies
+create table if not exists companies (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  timezone text not null default 'America/New_York',
+  created_at timestamptz not null default now()
+);
+
+-- Projects
+create table if not exists projects (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  name text not null,
+  status text not null default 'active', -- active|paused|closed
+  start_date date,
+  end_date date,
+  created_at timestamptz not null default now()
+);
+
+-- Vendors
+create table if not exists vendors (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  name text not null,
+  created_at timestamptz not null default now()
+);
+
+-- Normalized transactions (expenses + bills + invoices + payments)
+create table if not exists transactions (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  project_id uuid references projects(id) on delete set null,
+  vendor_id uuid references vendors(id) on delete set null,
+
+  type text not null, -- expense|bill|invoice|payment
+  direction text not null, -- out|in  (out=cost, in=revenue)
+
+  amount numeric(12,2) not null,
+  currency text not null default 'USD',
+  txn_date date not null,
+
+  category text, -- materials|labor|subcontract|equipment|permit|other
+  memo text,
+
+  source text not null default 'seed', -- seed|qbo|email|manual
+  source_ref text, -- external id (qbo txn id, email msg id, etc)
+
+  created_at timestamptz not null default now()
+);
+
+-- Labor entries (separate so you can support timesheets even without QB)
+create table if not exists labor_entries (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  project_id uuid references projects(id) on delete set null,
+
+  worker_name text,
+  role text, -- foreman|laborer|pm|etc
+  hours numeric(8,2) not null,
+  rate numeric(10,2), -- hourly rate
+  labor_date date not null,
+
+  source text not null default 'seed', -- seed|qbo|email|manual
+  source_ref text,
+
+  created_at timestamptz not null default now()
+);
+
+-- Weekly reports (store summary JSON + PDF URL)
+create table if not exists weekly_reports (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  week_start date not null,
+  week_end date not null,
+
+  summary jsonb not null, -- totals + per-project breakdown + alerts
+  pdf_url text, -- later: store in Supabase Storage
+  created_at timestamptz not null default now()
+);
+
+-- Imports log (for file/email/qbo sync jobs)
+create table if not exists imports (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  source text not null, -- email|qbo|manual
+  status text not null default 'received', -- received|processed|failed
+  details jsonb,
+  created_at timestamptz not null default now()
+);
+
+-- Helpful indexes
+create index if not exists idx_transactions_company_date on transactions(company_id, txn_date);
+create index if not exists idx_transactions_project_date on transactions(project_id, txn_date);
+create index if not exists idx_labor_company_date on labor_entries(company_id, labor_date);
+create index if not exists idx_reports_company_week on weekly_reports(company_id, week_start);
+
+
+This schema is production-aligned: it supports seed now, QBO/email later with source + source_ref.
+
+3) Backend API (minimum endpoints)
+
+We’ll build these first:
+
+Companies
+
+POST /api/seed/demo → creates demo company + projects + transactions + labor
+
+GET /api/companies → list
+
+Projects
+
+GET /api/companies/:companyId/projects
+
+GET /api/projects/:projectId/summary?weekStart=YYYY-MM-DD
+
+Reports
+
+POST /api/companies/:companyId/reports/weekly (weekStart) → generates summary JSON + stores to weekly_reports
+
+GET /api/companies/:companyId/reports → list reports
+
+GET /api/reports/:reportId → view report
+
+4) Mobile-friendly: yes, we do “web app” but mobile-first
+
+This is how we keep it mobile-friendly without extra work:
+
+Single-column layout on phones
+
+Big buttons (“Generate weekly report”)
+
+Cards for projects + numbers
+
+Sticky bottom nav (Dashboard / Projects / Reports)
+
+So: web app, but it behaves like a phone app.
+
+5) What you should do right now (in order)
+
+Create Supabase project
+
+Paste the SQL above
+
+In Supabase, grab:
+
+SUPABASE_URL
+
+SUPABASE_SERVICE_ROLE_KEY (server only)
+
+Then tell me: you have Supabase created + confirm you’ll use Node 18+ in Replit.
+
+If you reply: “Supabase ready”, I’ll give you the exact server code for:
+
+server/src/services/supabase.js
+
+server/src/services/seedService.js (creates the demo data)
+
+server/src/services/reportService.js (weekly report logic + alerts)
+
+routes + how to run it in Replit
+
+And we’ll have the demo working before we touch QuickBooks.
