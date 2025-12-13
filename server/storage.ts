@@ -163,6 +163,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWeeklyReport(data: InsertWeeklyReport): Promise<WeeklyReport> {
+    const existing = await this.getWeeklyReportByWeek(data.companyId, data.weekStart);
+    if (existing) {
+      const updated = await db.update(weeklyReports)
+        .set({ summary: data.summary, weekEnd: data.weekEnd })
+        .where(eq(weeklyReports.id, existing.id))
+        .returning();
+      return updated[0];
+    }
     const result = await db.insert(weeklyReports).values(data).returning();
     return result[0];
   }

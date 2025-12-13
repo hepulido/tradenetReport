@@ -176,9 +176,9 @@ export async function registerRoutes(
 
       const dashboard = await storage.getCompanyDashboard(req.params.companyId, weekStart, weekEnd);
       
-      const projectsObj: Record<string, { cost: number; revenue: number; margin: number }> = {};
+      const projectsObj: Record<string, { name: string; cost: number; revenue: number; margin: number }> = {};
       for (const p of dashboard.projects) {
-        projectsObj[p.name] = { cost: p.cost, revenue: p.revenue, margin: p.margin };
+        projectsObj[p.id] = { name: p.name, cost: p.cost, revenue: p.revenue, margin: p.margin };
       }
 
       const summary: ReportSummary = {

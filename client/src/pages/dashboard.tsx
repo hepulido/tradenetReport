@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { startOfWeek, format } from "date-fns";
+import { startOfWeek, endOfWeek, format } from "date-fns";
 import { DollarSign, TrendingUp, AlertTriangle, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { WeekSelector } from "@/components/week-selector";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Project, WeeklyReport, ReportSummary } from "@/lib/types";
+import type { Project, WeeklyReport, ReportSummary, DashboardData } from "@/lib/types";
 import { useLocation } from "wouter";
 
 export default function Dashboard() {
@@ -26,6 +26,8 @@ export default function Dashboard() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
   const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/companies", selectedCompany?.id, "projects"],
@@ -34,6 +36,11 @@ export default function Dashboard() {
 
   const { data: report, isLoading: reportLoading, refetch: refetchReport } = useQuery<WeeklyReport | null>({
     queryKey: ["/api/companies", selectedCompany?.id, "reports", "week", weekStartStr],
+    enabled: !!selectedCompany,
+  });
+
+  const { data: liveData, isLoading: liveDataLoading } = useQuery<DashboardData>({
+    queryKey: ["/api/companies", selectedCompany?.id, `dashboard?weekStart=${weekStartStr}&weekEnd=${weekEndStr}`],
     enabled: !!selectedCompany,
   });
 
@@ -47,7 +54,7 @@ export default function Dashboard() {
   };
 
   const formatPercent = (value: number) => {
-    return `${(value * 100).toFixed(1)}%`;
+    return `${value.toFixed(1)}%`;
   };
 
   const handleGenerateReport = async () => {
@@ -57,6 +64,7 @@ export default function Dashboard() {
     try {
       await apiRequest("POST", `/api/companies/${selectedCompany.id}/reports/weekly`, {
         weekStart: weekStartStr,
+        weekEnd: weekEndStr,
       });
       await refetchReport();
       queryClient.invalidateQueries({ queryKey: ["/api/companies", selectedCompany.id, "reports"] });
@@ -87,7 +95,7 @@ export default function Dashboard() {
     );
   }
 
-  if (projectsLoading || reportLoading) {
+  if (projectsLoading || reportLoading || liveDataLoading) {
     return (
       <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
         <DashboardSkeleton />
@@ -95,7 +103,19 @@ export default function Dashboard() {
     );
   }
 
-  const summary = report?.summary as ReportSummary | undefined;
+  const reportSummary = report?.summary as ReportSummary | undefined;
+  
+  const summary = reportSummary || (liveData ? {
+    totalCost: liveData.totalCost,
+    totalRevenue: liveData.totalRevenue,
+    grossMargin: liveData.grossMargin,
+    laborCost: liveData.laborCost,
+    materialCost: liveData.materialCost,
+    equipmentCost: liveData.equipmentCost,
+    otherCost: liveData.totalCost - liveData.laborCost - liveData.materialCost - liveData.equipmentCost,
+    alerts: liveData.alerts,
+    projects: Object.fromEntries(liveData.projects.map(p => [p.id, { name: p.name, cost: p.cost, revenue: p.revenue, margin: p.margin }]))
+  } : undefined);
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 pb-24 md:pb-8">
@@ -128,7 +148,7 @@ export default function Dashboard() {
             <MetricCard
               label="Gross Margin"
               value={formatPercent(summary.grossMargin)}
-              variant={summary.grossMargin >= 0.15 ? "success" : summary.grossMargin >= 0 ? "warning" : "danger"}
+              variant={summary.grossMargin >= 15 ? "success" : summary.grossMargin >= 0 ? "warning" : "danger"}
             />
             <MetricCard
               label="Alerts"
@@ -198,8 +218,8 @@ export default function Dashboard() {
             <div>
               <h2 className="text-xl font-semibold mb-4">Cost by Project</h2>
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {Object.entries(summary.projects).map(([projectName, metrics]) => {
-                  const project = projects?.find((p) => p.name === projectName);
+                {Object.entries(summary.projects).map(([projectId, metrics]) => {
+                  const project = projects?.find((p) => p.id === projectId);
                   if (!project) return null;
                   return (
                     <ProjectCard

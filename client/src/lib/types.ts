@@ -87,3 +87,14 @@ export type ImportRow = {
   mapped: boolean;
   createdAt: string;
 };
+
+export type DashboardData = {
+  totalCost: number;
+  totalRevenue: number;
+  grossMargin: number;
+  laborCost: number;
+  materialCost: number;
+  equipmentCost: number;
+  alerts: string[];
+  projects: { id: string; name: string; cost: number; revenue: number; margin: number; status: string }[];
+};
