@@ -7,8 +7,9 @@ import { useCompany } from "@/components/company-context";
 import { MetricCard } from "@/components/metric-card";
 import { AlertItem } from "@/components/alert-item";
 import { EmptyState } from "@/components/empty-state";
+import { ExecutiveSummary } from "@/components/executive-summary";
 import { cn } from "@/lib/utils";
-import type { WeeklyReport, ReportSummary, Project } from "@/lib/types";
+import type { WeeklyReport, ReportSummary, Project, DashboardInsights } from "@/lib/types";
 import { format } from "date-fns";
 
 export default function ReportDetail() {
@@ -36,8 +37,9 @@ export default function ReportDetail() {
     }).format(value);
   };
 
-  const formatPercent = (value: number) => {
-    return `${(value * 100).toFixed(1)}%`;
+  const formatPercent = (value: number, revenueZero = false) => {
+    if (revenueZero) return "N/A";
+    return `${value.toFixed(1)}%`;
   };
 
   if (isLoading) {
@@ -74,6 +76,18 @@ export default function ReportDetail() {
 
   const summary = report.summary as ReportSummary;
 
+  const reportInsights: DashboardInsights = {
+    costChangePercent: 0,
+    laborCostPercent: summary.totalCost > 0 ? (summary.laborCost / summary.totalCost) * 100 : 0,
+    materialCostPercent: summary.totalCost > 0 ? (summary.materialCost / summary.totalCost) * 100 : 0,
+    equipmentCostPercent: summary.totalCost > 0 ? (summary.equipmentCost / summary.totalCost) * 100 : 0,
+    lowMarginProjects: Object.entries(summary.projects || {})
+      .filter(([_, p]) => p.revenue > 0 && p.margin < 25)
+      .map(([name, p]) => ({ name, margin: p.margin })),
+    largeTransactions: [],
+    previousWeekCost: 0
+  };
+
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 pb-24 md:pb-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -96,6 +110,14 @@ export default function ReportDetail() {
         </div>
       </div>
 
+      <ExecutiveSummary
+        totalCost={summary.totalCost}
+        totalRevenue={summary.totalRevenue}
+        grossMargin={summary.grossMargin}
+        insights={reportInsights}
+        alerts={summary.alerts || []}
+      />
+
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="Total Cost"
@@ -110,8 +132,8 @@ export default function ReportDetail() {
         />
         <MetricCard
           label="Gross Margin"
-          value={formatPercent(summary.grossMargin)}
-          variant={summary.grossMargin >= 0.15 ? "success" : summary.grossMargin >= 0 ? "warning" : "danger"}
+          value={formatPercent(summary.grossMargin, summary.totalRevenue === 0)}
+          variant={summary.totalRevenue === 0 ? "default" : summary.grossMargin >= 15 ? "success" : summary.grossMargin >= 0 ? "warning" : "danger"}
         />
         <MetricCard
           label="Alerts"
@@ -200,14 +222,16 @@ export default function ReportDetail() {
                     <p
                       className={cn(
                         "text-sm font-mono",
-                        metrics.margin >= 0.15
+                        metrics.revenue === 0
+                          ? "text-muted-foreground"
+                          : metrics.margin >= 15
                           ? "text-emerald-600 dark:text-emerald-400"
                           : metrics.margin >= 0
                           ? "text-amber-600 dark:text-amber-400"
                           : "text-red-600 dark:text-red-400"
                       )}
                     >
-                      {formatPercent(metrics.margin)} margin
+                      {formatPercent(metrics.margin, metrics.revenue === 0)} margin
                     </p>
                   </div>
                 </div>

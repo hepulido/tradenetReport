@@ -39,8 +39,9 @@ export function ProjectCard({ project, metrics, onClick }: ProjectCardProps) {
     }).format(value);
   };
 
-  const formatPercent = (value: number) => {
-    return `${(value * 100).toFixed(1)}%`;
+  const formatPercent = (value: number, revenueZero = false) => {
+    if (revenueZero) return "N/A";
+    return `${value.toFixed(1)}%`;
   };
 
   return (
@@ -100,7 +101,9 @@ export function ProjectCard({ project, metrics, onClick }: ProjectCardProps) {
               <p
                 className={cn(
                   "text-sm font-medium font-mono",
-                  metrics.margin >= 0.15
+                  metrics.revenue === 0
+                    ? "text-muted-foreground"
+                    : metrics.margin >= 15
                     ? "text-emerald-600 dark:text-emerald-400"
                     : metrics.margin >= 0
                     ? "text-amber-600 dark:text-amber-400"
@@ -108,7 +111,7 @@ export function ProjectCard({ project, metrics, onClick }: ProjectCardProps) {
                 )}
                 data-testid={`text-margin-${project.id}`}
               >
-                {formatPercent(metrics.margin)}
+                {formatPercent(metrics.margin, metrics.revenue === 0)}
               </p>
             </div>
           </div>

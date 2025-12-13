@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { startOfWeek, endOfWeek, format } from "date-fns";
 import { DollarSign, TrendingUp, AlertTriangle, BarChart3 } from "lucide-react";
@@ -12,6 +12,7 @@ import { AlertItem } from "@/components/alert-item";
 import { WeekSelector } from "@/components/week-selector";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
+import { ExecutiveSummary } from "@/components/executive-summary";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Project, WeeklyReport, ReportSummary, DashboardData } from "@/lib/types";
 import { useLocation } from "wouter";
@@ -53,7 +54,8 @@ export default function Dashboard() {
     }).format(value);
   };
 
-  const formatPercent = (value: number) => {
+  const formatPercent = (value: number, revenueZero = false) => {
+    if (revenueZero) return "N/A";
     return `${value.toFixed(1)}%`;
   };
 
@@ -133,6 +135,16 @@ export default function Dashboard() {
 
       {summary ? (
         <>
+          {liveData?.insights && (
+            <ExecutiveSummary
+              totalCost={summary.totalCost}
+              totalRevenue={summary.totalRevenue}
+              grossMargin={summary.grossMargin}
+              insights={liveData.insights}
+              alerts={summary.alerts || []}
+            />
+          )}
+
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             <MetricCard
               label="Total Cost"
@@ -147,8 +159,8 @@ export default function Dashboard() {
             />
             <MetricCard
               label="Gross Margin"
-              value={formatPercent(summary.grossMargin)}
-              variant={summary.grossMargin >= 15 ? "success" : summary.grossMargin >= 0 ? "warning" : "danger"}
+              value={formatPercent(summary.grossMargin, summary.totalRevenue === 0)}
+              variant={summary.totalRevenue === 0 ? "default" : summary.grossMargin >= 15 ? "success" : summary.grossMargin >= 0 ? "warning" : "danger"}
             />
             <MetricCard
               label="Alerts"

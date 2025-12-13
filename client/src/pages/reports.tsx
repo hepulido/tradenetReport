@@ -61,8 +61,9 @@ export default function Reports() {
     }).format(value);
   };
 
-  const formatPercent = (value: number) => {
-    return `${(value * 100).toFixed(1)}%`;
+  const formatPercent = (value: number, revenueZero = false) => {
+    if (revenueZero) return "N/A";
+    return `${value.toFixed(1)}%`;
   };
 
   if (!selectedCompany) {
@@ -125,8 +126,8 @@ export default function Reports() {
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span>Cost: {formatCurrency(summary?.totalCost || 0)}</span>
                         <span>Revenue: {formatCurrency(summary?.totalRevenue || 0)}</span>
-                        <span className={summary?.grossMargin >= 0.15 ? "text-emerald-600 dark:text-emerald-400" : summary?.grossMargin >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}>
-                          Margin: {formatPercent(summary?.grossMargin || 0)}
+                        <span className={!summary?.totalRevenue ? "text-muted-foreground" : summary?.grossMargin >= 15 ? "text-emerald-600 dark:text-emerald-400" : summary?.grossMargin >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}>
+                          Margin: {formatPercent(summary?.grossMargin || 0, !summary?.totalRevenue)}
                         </span>
                       </div>
                     </div>

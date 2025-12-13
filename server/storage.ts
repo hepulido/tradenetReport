@@ -51,6 +51,15 @@ export interface IStorage {
     equipmentCost: number;
     alerts: string[];
     projects: { id: string; name: string; cost: number; revenue: number; margin: number; status: string }[];
+    insights: {
+      costChangePercent: number;
+      laborCostPercent: number;
+      materialCostPercent: number;
+      equipmentCostPercent: number;
+      lowMarginProjects: { name: string; margin: number }[];
+      largeTransactions: { description: string; amount: number; vendor: string | null }[];
+      previousWeekCost: number;
+    };
   }>;
 }
 
@@ -219,11 +228,29 @@ export class DatabaseStorage implements IStorage {
     equipmentCost: number;
     alerts: string[];
     projects: { id: string; name: string; cost: number; revenue: number; margin: number; status: string }[];
+    insights: {
+      costChangePercent: number;
+      laborCostPercent: number;
+      materialCostPercent: number;
+      equipmentCostPercent: number;
+      lowMarginProjects: { name: string; margin: number }[];
+      largeTransactions: { description: string; amount: number; vendor: string | null }[];
+      previousWeekCost: number;
+    };
   }> {
-    const [txns, labor, projectList] = await Promise.all([
+    const prevWeekStart = new Date(weekStart);
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+    const prevWeekEnd = new Date(weekEnd);
+    prevWeekEnd.setDate(prevWeekEnd.getDate() - 7);
+    const prevWeekStartStr = prevWeekStart.toISOString().split('T')[0];
+    const prevWeekEndStr = prevWeekEnd.toISOString().split('T')[0];
+
+    const [txns, labor, projectList, prevTxns, prevLabor] = await Promise.all([
       this.getTransactions(companyId, { startDate: weekStart, endDate: weekEnd }),
       this.getLaborEntries(companyId, { startDate: weekStart, endDate: weekEnd }),
-      this.getProjects(companyId)
+      this.getProjects(companyId),
+      this.getTransactions(companyId, { startDate: prevWeekStartStr, endDate: prevWeekEndStr }),
+      this.getLaborEntries(companyId, { startDate: prevWeekStartStr, endDate: prevWeekEndStr })
     ]);
 
     let totalCost = 0;
@@ -231,7 +258,7 @@ export class DatabaseStorage implements IStorage {
     let laborCost = 0;
     let materialCost = 0;
     let equipmentCost = 0;
-
+    const largeTransactions: { description: string; amount: number; vendor: string | null }[] = [];
     const projectCosts: Record<string, { cost: number; revenue: number }> = {};
 
     for (const txn of txns) {
@@ -241,6 +268,9 @@ export class DatabaseStorage implements IStorage {
         if (txn.category === "labor") laborCost += amount;
         else if (txn.category === "material") materialCost += amount;
         else if (txn.category === "equipment") equipmentCost += amount;
+        if (amount >= 20000) {
+          largeTransactions.push({ description: txn.description || "Large expense", amount, vendor: txn.vendor });
+        }
       } else {
         totalRevenue += amount;
       }
@@ -257,7 +287,9 @@ export class DatabaseStorage implements IStorage {
     }
 
     for (const entry of labor) {
-      const cost = parseFloat(entry.hours) * parseFloat(entry.rate || "0");
+      const hours = parseFloat(entry.hours || "0");
+      const rate = parseFloat(entry.rate || "0");
+      const cost = hours * rate;
       laborCost += cost;
       totalCost += cost;
       if (entry.projectId) {
@@ -268,28 +300,45 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    let previousWeekCost = 0;
+    for (const txn of prevTxns) {
+      if (txn.direction === "out") {
+        previousWeekCost += parseFloat(txn.amount);
+      }
+    }
+    for (const entry of prevLabor) {
+      previousWeekCost += parseFloat(entry.hours || "0") * parseFloat(entry.rate || "0");
+    }
+
     const grossMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
+    const costChangePercent = previousWeekCost > 0 ? ((totalCost - previousWeekCost) / previousWeekCost) * 100 : 0;
+    const laborCostPercent = totalCost > 0 ? (laborCost / totalCost) * 100 : 0;
+    const materialCostPercent = totalCost > 0 ? (materialCost / totalCost) * 100 : 0;
+    const equipmentCostPercent = totalCost > 0 ? (equipmentCost / totalCost) * 100 : 0;
 
     const alerts: string[] = [];
-    if (grossMargin < 15) {
-      alerts.push(`Low margin warning: ${grossMargin.toFixed(1)}% is below target`);
+    if (costChangePercent > 10) {
+      alerts.push(`Cost increased ${costChangePercent.toFixed(0)}% from last week`);
     }
-    if (laborCost > totalCost * 0.5) {
-      alerts.push("Labor costs exceed 50% of total expenses");
+    if (totalRevenue > 0 && grossMargin < 25) {
+      alerts.push(`Gross margin ${grossMargin.toFixed(1)}% is below 25% target`);
+    }
+    if (laborCostPercent > 50) {
+      alerts.push(`Labor is ${laborCostPercent.toFixed(0)}% of total costs (above 50% threshold)`);
+    }
+    for (const lt of largeTransactions) {
+      alerts.push(`Large transaction: ${lt.description} - $${lt.amount.toLocaleString()}`);
     }
 
     const projectsData = projectList.map(p => {
       const data = projectCosts[p.id] || { cost: 0, revenue: 0 };
       const margin = data.revenue > 0 ? ((data.revenue - data.cost) / data.revenue) * 100 : 0;
-      return {
-        id: p.id,
-        name: p.name,
-        cost: data.cost,
-        revenue: data.revenue,
-        margin,
-        status: p.status
-      };
+      return { id: p.id, name: p.name, cost: data.cost, revenue: data.revenue, margin, status: p.status };
     });
+
+    const lowMarginProjects = projectsData
+      .filter(p => p.revenue > 0 && p.margin < 25)
+      .map(p => ({ name: p.name, margin: p.margin }));
 
     return {
       totalCost,
@@ -299,7 +348,16 @@ export class DatabaseStorage implements IStorage {
       materialCost,
       equipmentCost,
       alerts,
-      projects: projectsData
+      projects: projectsData,
+      insights: {
+        costChangePercent,
+        laborCostPercent,
+        materialCostPercent,
+        equipmentCostPercent,
+        lowMarginProjects,
+        largeTransactions,
+        previousWeekCost
+      }
     };
   }
 }

@@ -88,6 +88,16 @@ export type ImportRow = {
   createdAt: string;
 };
 
+export type DashboardInsights = {
+  costChangePercent: number;
+  laborCostPercent: number;
+  materialCostPercent: number;
+  equipmentCostPercent: number;
+  lowMarginProjects: { name: string; margin: number }[];
+  largeTransactions: { description: string; amount: number; vendor: string | null }[];
+  previousWeekCost: number;
+};
+
 export type DashboardData = {
   totalCost: number;
   totalRevenue: number;
@@ -97,4 +107,5 @@ export type DashboardData = {
   equipmentCost: number;
   alerts: string[];
   projects: { id: string; name: string; cost: number; revenue: number; margin: number; status: string }[];
+  insights: DashboardInsights;
 };
