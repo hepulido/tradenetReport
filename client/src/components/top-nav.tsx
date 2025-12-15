@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, FolderKanban, FileBarChart, Upload } from "lucide-react";
+import { LayoutDashboard, FolderKanban, FileBarChart, Upload, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CompanySelector } from "@/components/company-selector";
@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/projects", icon: FolderKanban, label: "Projects" },
+  { href: "/labor", icon: Clock, label: "Labor" },
   { href: "/reports", icon: FileBarChart, label: "Reports" },
   { href: "/upload", icon: Upload, label: "Upload" },
 ];
