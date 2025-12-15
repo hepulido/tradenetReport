@@ -3,7 +3,8 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import {
   insertCompanySchema, insertProjectSchema, insertTransactionSchema,
-  insertWeeklyReportSchema, insertLaborEntrySchema, type ReportSummary
+  insertWeeklyReportSchema, insertLaborEntrySchema, insertCompanySettingsSchema,
+  type ReportSummary
 } from "@shared/schema";
 
 export async function registerRoutes(
@@ -294,6 +295,129 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to import data" });
+    }
+  });
+
+  // Company Settings
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      if (!companyId) {
+        return res.status(400).json({ error: "companyId is required" });
+      }
+      const settings = await storage.getCompanySettings(companyId as string);
+      if (!settings) {
+        const defaultSettings = await storage.upsertCompanySettings(companyId as string, {});
+        return res.json(defaultSettings);
+      }
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  app.put("/api/settings", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      if (!companyId) {
+        return res.status(400).json({ error: "companyId is required" });
+      }
+      const settingsSchema = insertCompanySettingsSchema
+        .omit({ companyId: true })
+        .partial()
+        .strict()
+        .refine(data => Object.keys(data).length > 0, { message: "At least one setting field is required" });
+      const validatedData = settingsSchema.parse(req.body);
+      const settings = await storage.upsertCompanySettings(companyId as string, validatedData);
+      res.json(settings);
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid settings data" });
+      }
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // QuickBooks Integration
+  app.get("/api/integrations/quickbooks/status", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      if (!companyId) {
+        return res.status(400).json({ error: "companyId is required" });
+      }
+      const connection = await storage.getQbConnection(companyId as string);
+      res.json({
+        connected: connection?.connectionStatus === "connected",
+        status: connection?.connectionStatus || "disconnected",
+        lastSyncAt: connection?.lastSyncAt || null,
+        realmId: connection?.realmId || null
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch QuickBooks status" });
+    }
+  });
+
+  app.get("/api/integrations/quickbooks/connect", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      if (!companyId) {
+        return res.status(400).json({ error: "companyId is required" });
+      }
+      const authUrl = `https://appcenter.intuit.com/connect/oauth2?client_id=DEMO_CLIENT_ID&redirect_uri=${encodeURIComponent(process.env.QB_REDIRECT_URI || 'http://localhost:5000/api/integrations/quickbooks/callback')}&response_type=code&scope=com.intuit.quickbooks.accounting&state=${companyId}`;
+      res.json({ authUrl, message: "QuickBooks OAuth not configured - this is a placeholder URL" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate auth URL" });
+    }
+  });
+
+  app.get("/api/integrations/quickbooks/callback", async (req, res) => {
+    try {
+      const { code, state: companyId, realmId } = req.query;
+      if (!companyId) {
+        return res.status(400).json({ error: "Invalid callback - missing state" });
+      }
+      await storage.upsertQbConnection(companyId as string, {
+        realmId: realmId as string || null,
+        connectionStatus: "connected",
+        accessToken: "demo_access_token",
+        refreshToken: "demo_refresh_token",
+        tokenExpiresAt: new Date(Date.now() + 3600000)
+      });
+      res.redirect(`/?qb_connected=true`);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to complete OAuth callback" });
+    }
+  });
+
+  app.post("/api/integrations/quickbooks/disconnect", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      if (!companyId) {
+        return res.status(400).json({ error: "companyId is required" });
+      }
+      await storage.deleteQbConnection(companyId as string);
+      res.json({ success: true, message: "QuickBooks disconnected" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to disconnect QuickBooks" });
+    }
+  });
+
+  app.post("/api/integrations/quickbooks/sync-now", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      if (!companyId) {
+        return res.status(400).json({ error: "companyId is required" });
+      }
+      const connection = await storage.getQbConnection(companyId as string);
+      if (!connection || connection.connectionStatus !== "connected") {
+        return res.status(400).json({ error: "QuickBooks not connected" });
+      }
+      await storage.upsertQbConnection(companyId as string, {
+        lastSyncAt: new Date()
+      });
+      res.json({ success: true, message: "Sync initiated (stub - no actual sync performed)", lastSyncAt: new Date() });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to sync with QuickBooks" });
     }
   });
 

@@ -2,11 +2,13 @@ import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   companies, projects, vendors, transactions, laborEntries,
-  weeklyReports, importFiles, importRows,
+  weeklyReports, importFiles, importRows, companySettings, qbConnections,
   type Company, type Project, type Vendor, type Transaction,
   type LaborEntry, type WeeklyReport, type ImportFile, type ImportRow,
+  type CompanySettings, type QbConnection,
   type InsertCompany, type InsertProject, type InsertVendor, type InsertTransaction,
   type InsertLaborEntry, type InsertWeeklyReport, type InsertImportFile, type InsertImportRow,
+  type InsertCompanySettings, type InsertQbConnection,
   type ReportSummary
 } from "@shared/schema";
 
@@ -42,6 +44,14 @@ export interface IStorage {
   createImportRows(data: InsertImportRow[]): Promise<ImportRow[]>;
 
   getProjectSummary(projectId: string): Promise<{ totalCost: number; totalRevenue: number; margin: number; transactionCount: number }>;
+
+  getCompanySettings(companyId: string): Promise<CompanySettings | undefined>;
+  upsertCompanySettings(companyId: string, data: Partial<InsertCompanySettings>): Promise<CompanySettings>;
+
+  getQbConnection(companyId: string): Promise<QbConnection | undefined>;
+  upsertQbConnection(companyId: string, data: Partial<InsertQbConnection>): Promise<QbConnection>;
+  deleteQbConnection(companyId: string): Promise<void>;
+
   getCompanyDashboard(companyId: string, weekStart: string, weekEnd: string): Promise<{
     totalCost: number;
     totalRevenue: number;
@@ -245,13 +255,19 @@ export class DatabaseStorage implements IStorage {
     const prevWeekStartStr = prevWeekStart.toISOString().split('T')[0];
     const prevWeekEndStr = prevWeekEnd.toISOString().split('T')[0];
 
-    const [txns, labor, projectList, prevTxns, prevLabor] = await Promise.all([
+    const [txns, labor, projectList, prevTxns, prevLabor, settings] = await Promise.all([
       this.getTransactions(companyId, { startDate: weekStart, endDate: weekEnd }),
       this.getLaborEntries(companyId, { startDate: weekStart, endDate: weekEnd }),
       this.getProjects(companyId),
       this.getTransactions(companyId, { startDate: prevWeekStartStr, endDate: prevWeekEndStr }),
-      this.getLaborEntries(companyId, { startDate: prevWeekStartStr, endDate: prevWeekEndStr })
+      this.getLaborEntries(companyId, { startDate: prevWeekStartStr, endDate: prevWeekEndStr }),
+      this.getCompanySettings(companyId)
     ]);
+
+    const costSpikeThreshold = settings?.costSpikeThreshold ? parseFloat(settings.costSpikeThreshold) : 10;
+    const marginThreshold = settings?.marginThreshold ? parseFloat(settings.marginThreshold) : 25;
+    const largeTxnThreshold = settings?.largeTxnThreshold ? parseFloat(settings.largeTxnThreshold) : 20000;
+    const laborShareThreshold = settings?.laborShareThreshold ? parseFloat(settings.laborShareThreshold) : 50;
 
     let totalCost = 0;
     let totalRevenue = 0;
@@ -268,7 +284,7 @@ export class DatabaseStorage implements IStorage {
         if (txn.category === "labor") laborCost += amount;
         else if (txn.category === "material") materialCost += amount;
         else if (txn.category === "equipment") equipmentCost += amount;
-        if (amount >= 20000) {
+        if (amount >= largeTxnThreshold) {
           largeTransactions.push({ description: txn.description || "Large expense", amount, vendor: txn.vendor });
         }
       } else {
@@ -317,14 +333,14 @@ export class DatabaseStorage implements IStorage {
     const equipmentCostPercent = totalCost > 0 ? (equipmentCost / totalCost) * 100 : 0;
 
     const alerts: string[] = [];
-    if (costChangePercent > 10) {
+    if (costChangePercent > costSpikeThreshold) {
       alerts.push(`Cost increased ${costChangePercent.toFixed(0)}% from last week`);
     }
-    if (totalRevenue > 0 && grossMargin < 25) {
-      alerts.push(`Gross margin ${grossMargin.toFixed(1)}% is below 25% target`);
+    if (totalRevenue > 0 && grossMargin < marginThreshold) {
+      alerts.push(`Gross margin ${grossMargin.toFixed(1)}% is below ${marginThreshold}% target`);
     }
-    if (laborCostPercent > 50) {
-      alerts.push(`Labor is ${laborCostPercent.toFixed(0)}% of total costs (above 50% threshold)`);
+    if (laborCostPercent > laborShareThreshold) {
+      alerts.push(`Labor is ${laborCostPercent.toFixed(0)}% of total costs (above ${laborShareThreshold}% threshold)`);
     }
     for (const lt of largeTransactions) {
       alerts.push(`Large transaction: ${lt.description} - $${lt.amount.toLocaleString()}`);
@@ -337,7 +353,7 @@ export class DatabaseStorage implements IStorage {
     });
 
     const lowMarginProjects = projectsData
-      .filter(p => p.revenue > 0 && p.margin < 25)
+      .filter(p => p.revenue > 0 && p.margin < marginThreshold)
       .map(p => ({ name: p.name, margin: p.margin }));
 
     return {
@@ -359,6 +375,46 @@ export class DatabaseStorage implements IStorage {
         previousWeekCost
       }
     };
+  }
+
+  async getCompanySettings(companyId: string): Promise<CompanySettings | undefined> {
+    const result = await db.select().from(companySettings).where(eq(companySettings.companyId, companyId));
+    return result[0];
+  }
+
+  async upsertCompanySettings(companyId: string, data: Partial<InsertCompanySettings>): Promise<CompanySettings> {
+    const existing = await this.getCompanySettings(companyId);
+    if (existing) {
+      const updated = await db.update(companySettings)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(companySettings.companyId, companyId))
+        .returning();
+      return updated[0];
+    }
+    const result = await db.insert(companySettings).values({ companyId, ...data }).returning();
+    return result[0];
+  }
+
+  async getQbConnection(companyId: string): Promise<QbConnection | undefined> {
+    const result = await db.select().from(qbConnections).where(eq(qbConnections.companyId, companyId));
+    return result[0];
+  }
+
+  async upsertQbConnection(companyId: string, data: Partial<InsertQbConnection>): Promise<QbConnection> {
+    const existing = await this.getQbConnection(companyId);
+    if (existing) {
+      const updated = await db.update(qbConnections)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(qbConnections.companyId, companyId))
+        .returning();
+      return updated[0];
+    }
+    const result = await db.insert(qbConnections).values({ companyId, ...data }).returning();
+    return result[0];
+  }
+
+  async deleteQbConnection(companyId: string): Promise<void> {
+    await db.delete(qbConnections).where(eq(qbConnections.companyId, companyId));
   }
 }
 

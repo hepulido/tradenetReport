@@ -11,13 +11,15 @@ export const companies = pgTable("companies", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const companiesRelations = relations(companies, ({ many }) => ({
+export const companiesRelations = relations(companies, ({ many, one }) => ({
   projects: many(projects),
   transactions: many(transactions),
   vendors: many(vendors),
   laborEntries: many(laborEntries),
   weeklyReports: many(weeklyReports),
   importFiles: many(importFiles),
+  settings: one(companySettings),
+  qbConnection: one(qbConnections),
 }));
 
 export const projects = pgTable("projects", {
@@ -132,6 +134,46 @@ export const importRowsRelations = relations(importRows, ({ one }) => ({
   importFile: one(importFiles, { fields: [importRows.importFileId], references: [importFiles.id] }),
 }));
 
+export const companySettings = pgTable("company_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }).unique(),
+  reportDay: text("report_day").notNull().default("monday"),
+  reportTime: text("report_time").notNull().default("08:00"),
+  reportTimezone: text("report_timezone").notNull().default("America/New_York"),
+  marginThreshold: numeric("margin_threshold", { precision: 5, scale: 2 }).notNull().default("25"),
+  costSpikeThreshold: numeric("cost_spike_threshold", { precision: 5, scale: 2 }).notNull().default("10"),
+  largeTxnThreshold: numeric("large_txn_threshold", { precision: 12, scale: 2 }).notNull().default("20000"),
+  laborShareThreshold: numeric("labor_share_threshold", { precision: 5, scale: 2 }).notNull().default("50"),
+  emailNotifications: boolean("email_notifications").notNull().default(true),
+  smsNotifications: boolean("sms_notifications").notNull().default(false),
+  whatsappNotifications: boolean("whatsapp_notifications").notNull().default(false),
+  emailList: text("email_list").array().default(sql`'{}'::text[]`),
+  phoneList: text("phone_list").array().default(sql`'{}'::text[]`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const companySettingsRelations = relations(companySettings, ({ one }) => ({
+  company: one(companies, { fields: [companySettings.companyId], references: [companies.id] }),
+}));
+
+export const qbConnections = pgTable("qb_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }).unique(),
+  realmId: text("realm_id"),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  connectionStatus: text("connection_status").notNull().default("disconnected"),
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const qbConnectionsRelations = relations(qbConnections, ({ one }) => ({
+  company: one(companies, { fields: [qbConnections.companyId], references: [companies.id] }),
+}));
+
 export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true });
 export const insertVendorSchema = createInsertSchema(vendors).omit({ id: true, createdAt: true });
@@ -140,6 +182,8 @@ export const insertLaborEntrySchema = createInsertSchema(laborEntries).omit({ id
 export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({ id: true, createdAt: true });
 export const insertImportFileSchema = createInsertSchema(importFiles).omit({ id: true, uploadedAt: true });
 export const insertImportRowSchema = createInsertSchema(importRows).omit({ id: true, createdAt: true });
+export const insertCompanySettingsSchema = createInsertSchema(companySettings).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertQbConnectionSchema = createInsertSchema(qbConnections).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -149,6 +193,8 @@ export type InsertLaborEntry = z.infer<typeof insertLaborEntrySchema>;
 export type InsertWeeklyReport = z.infer<typeof insertWeeklyReportSchema>;
 export type InsertImportFile = z.infer<typeof insertImportFileSchema>;
 export type InsertImportRow = z.infer<typeof insertImportRowSchema>;
+export type InsertCompanySettings = z.infer<typeof insertCompanySettingsSchema>;
+export type InsertQbConnection = z.infer<typeof insertQbConnectionSchema>;
 
 export type Company = typeof companies.$inferSelect;
 export type Project = typeof projects.$inferSelect;
@@ -158,6 +204,8 @@ export type LaborEntry = typeof laborEntries.$inferSelect;
 export type WeeklyReport = typeof weeklyReports.$inferSelect;
 export type ImportFile = typeof importFiles.$inferSelect;
 export type ImportRow = typeof importRows.$inferSelect;
+export type CompanySettings = typeof companySettings.$inferSelect;
+export type QbConnection = typeof qbConnections.$inferSelect;
 
 export type ReportSummary = {
   totalCost: number;

@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, FolderKanban, FileBarChart, Upload, Clock } from "lucide-react";
+import { LayoutDashboard, FolderKanban, FileBarChart, Upload, Clock, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CompanySelector } from "@/components/company-selector";
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/labor", icon: Clock, label: "Labor" },
   { href: "/reports", icon: FileBarChart, label: "Reports" },
   { href: "/upload", icon: Upload, label: "Upload" },
+  { href: "/settings", icon: Settings, label: "Settings" },
 ];
 
 interface TopNavProps {

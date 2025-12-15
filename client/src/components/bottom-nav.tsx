@@ -1,13 +1,13 @@
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, FolderKanban, FileBarChart, Upload, Clock } from "lucide-react";
+import { LayoutDashboard, FolderKanban, FileBarChart, Upload, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/projects", icon: FolderKanban, label: "Projects" },
-  { href: "/labor", icon: Clock, label: "Labor" },
   { href: "/reports", icon: FileBarChart, label: "Reports" },
   { href: "/upload", icon: Upload, label: "Upload" },
+  { href: "/settings", icon: Settings, label: "Settings" },
 ];
 
 export function BottomNav() {

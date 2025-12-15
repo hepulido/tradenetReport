@@ -1,0 +1,196 @@
+You are working inside an existing JobCost AI app.
+
+STACK (DO NOT CHANGE):
+- Frontend: React 18 + TypeScript + Vite
+- UI: Tailwind CSS + shadcn/ui
+- Router: Wouter
+- Data: TanStack React Query
+- Backend: Node.js + Express + TypeScript
+- DB: PostgreSQL (Replit/Neon)
+- ORM: Drizzle ORM
+- API prefix: /api
+- Frontend + backend served on the same server (port 5000)
+
+GOAL:
+Add production-ready “Company Settings” + alert configuration + notification channels + QuickBooks integration scaffolding. Also make the project export-ready to GitHub and deployable outside Replit.
+
+DO NOT redesign existing pages. Keep current UI patterns.
+
+========================================================
+1) DATABASE CHANGES (DRIZZLE)
+========================================================
+Create two new tables using Drizzle schema + migrations.
+
+A) company_settings
+- id (pk)
+- company_id (fk unique -> companies.id)
+- report_day_of_week int default 1 (Mon)
+- report_time_local varchar default "09:00"
+- timezone varchar default "America/New_York"
+- margin_target_percent numeric default 25
+- alert_cost_spike_percent numeric default 10
+- alert_large_txn_amount numeric default 10000
+- alert_labor_share_percent numeric default 45
+- notifications_email_enabled boolean default true
+- notifications_sms_enabled boolean default false
+- notifications_whatsapp_enabled boolean default false
+- notify_emails jsonb default []  (array of strings)
+- notify_phone_numbers jsonb default [] (array of strings)
+- created_at timestamp default now
+- updated_at timestamp default now
+
+B) qb_connections
+- id (pk)
+- company_id (fk unique -> companies.id)
+- realm_id varchar nullable
+- access_token text nullable
+- refresh_token text nullable
+- expires_at timestamp nullable
+- connected_at timestamp nullable
+- last_sync_at timestamp nullable
+- status varchar default "disconnected" (connected/disconnected/error)
+- created_at timestamp default now
+- updated_at timestamp default now
+
+Add indexes on company_id for both tables.
+
+Ensure migrations are generated and committed.
+
+========================================================
+2) BACKEND API (EXPRESS)
+========================================================
+Add endpoints:
+
+Settings:
+- GET  /api/settings?companyId=
+  -> returns company_settings (create defaults if missing)
+- PUT  /api/settings?companyId=
+  -> updates company_settings (validate inputs)
+
+QuickBooks scaffolding:
+- GET  /api/integrations/quickbooks/status?companyId=
+- GET  /api/integrations/quickbooks/connect?companyId=
+    -> returns a placeholder auth URL and stores status "disconnected" if missing
+- GET  /api/integrations/quickbooks/callback
+    -> placeholder handler: accept realmId, access_token, refresh_token, expires_at if provided and store them; set status "connected"
+- POST /api/integrations/quickbooks/disconnect
+    -> clears tokens and sets status "disconnected"
+- POST /api/integrations/quickbooks/sync-now
+    -> stub: sets last_sync_at = now and returns "sync not implemented"
+
+========================================================
+3) ALERT ENGINE UPDATE
+========================================================
+Update weekly report generation to:
+- Load company_settings thresholds
+- Generate alerts using those thresholds instead of hardcoded rules
+
+Alert model:
+- type: COST_SPIKE | LARGE_TXN | LOW_MARGIN | LABOR_SHARE_HIGH
+- severity: info | warn | critical
+- message: human readable
+- related_project_id nullable
+- related_transaction_id nullable
+
+Store alerts inside weekly_reports JSON.
+
+========================================================
+4) NOTIFICATIONS SERVICE (REALISTIC SCAFFOLD)
+========================================================
+Create a server-side notifications module:
+- sendEmail(to[], subject, body): use Nodemailer if EMAIL_* env exists, else console.log
+- sendSms(to[], message): Twilio stub if TWILIO_* env exists, else console.log
+- sendWhatsApp(to[], message): Twilio WhatsApp stub if TWILIO_* exists, else console.log
+
+When a weekly report is generated:
+- Create alerts
+- If notifications enabled in settings, send message summary via enabled channels
+
+Also add an endpoint:
+- POST /api/reports/generate?companyId=&weekStart=&weekEnd=
+  -> generates report, saves weekly_reports, returns it
+Use existing logic if already present; just wire notifications + settings thresholds.
+
+========================================================
+5) FRONTEND: SETTINGS PAGE (WOUTER + SHADCN)
+========================================================
+Add a new navigation item: Settings
+
+Settings page sections:
+A) Report Schedule
+- day of week dropdown
+- time input
+- timezone dropdown/text
+
+B) Thresholds
+- margin target %
+- cost spike %
+- large transaction $
+- labor share %
+
+C) Notifications
+- toggles: email/sms/whatsapp
+- email list input (comma separated)
+- phone list input (comma separated)
+
+D) QuickBooks
+- show status (connected/disconnected)
+- buttons: Connect, Disconnect, Sync Now
+- show last_sync_at if present
+These buttons call the backend endpoints.
+
+Use React Query for GET/PUT settings and for QB actions.
+Show success/error toasts with existing UI patterns.
+
+========================================================
+6) GITHUB / DEPLOY READY IMPROVEMENTS
+========================================================
+Add the following to the repo:
+
+A) .env.example
+Include:
+- DATABASE_URL=
+- NODE_ENV=
+- PORT=5000
+- EMAIL_HOST= (optional)
+- EMAIL_PORT=
+- EMAIL_USER=
+- EMAIL_PASS=
+- TWILIO_ACCOUNT_SID=
+- TWILIO_AUTH_TOKEN=
+- TWILIO_FROM_NUMBER=
+- TWILIO_WHATSAPP_FROM= (optional)
+- QUICKBOOKS_CLIENT_ID= (optional)
+- QUICKBOOKS_CLIENT_SECRET= (optional)
+- QUICKBOOKS_REDIRECT_URI= (optional)
+
+B) README.md
+Document:
+- install steps
+- set DATABASE_URL
+- run migrations
+- seed demo data
+- start dev server
+- build and start for production
+- note about Neon/Replit Postgres and how to use an external Neon DB
+
+C) Scripts in package.json
+Add/ensure scripts:
+- dev
+- build
+- start
+- db:migrate (drizzle)
+- db:push (if used)
+- db:seed
+
+D) Seed script
+Create a seed script that populates:
+- 1 company
+- 3 projects
+- 40-80 transactions across 2-3 weeks
+- 2 weekly_reports generated and saved
+So Reports page is never empty.
+
+IMPORTANT:
+Do not break existing pages: Dashboard, Projects, Reports, Upload, Labor Hours.
+If anything is unclear, make a reasonable assumption and proceed.
