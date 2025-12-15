@@ -109,3 +109,30 @@ export type DashboardData = {
   projects: { id: string; name: string; cost: number; revenue: number; margin: number; status: string }[];
   insights: DashboardInsights;
 };
+
+export type IngestionJob = {
+  id: string;
+  companyId: string;
+  sourceType: string;
+  filename: string | null;
+  fileUrl: string | null;
+  status: string;
+  errorMessage: string | null;
+  createdAt: string;
+  processedAt: string | null;
+};
+
+export type IngestionResult = {
+  id: string;
+  ingestionJobId: string;
+  rawText: string | null;
+  extractedJson: Record<string, unknown> | null;
+  confidenceScore: string | null;
+  status: string;
+  createdAt: string;
+  approvedAt: string | null;
+};
+
+export type IngestionJobWithResults = IngestionJob & {
+  results: IngestionResult[];
+};

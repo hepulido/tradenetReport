@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Upload as UploadIcon, CheckCircle, ArrowRight, FileText } from "lucide-react";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -71,6 +72,43 @@ export default function Upload() {
     },
   });
 
+  const parseCSV = (text: string): { headers: string[]; rows: ParsedRow[] } => {
+    const lines = text.split("\n").filter((line) => line.trim());
+    if (lines.length < 2) {
+      throw new Error("File must have at least a header row and one data row");
+    }
+    const csvHeaders = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+    const rows: ParsedRow[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
+      const row: ParsedRow = {};
+      csvHeaders.forEach((header, index) => {
+        row[header] = values[index] || "";
+      });
+      rows.push(row);
+    }
+    return { headers: csvHeaders, rows };
+  };
+
+  const parseXLSX = async (file: File): Promise<{ headers: string[]; rows: ParsedRow[] }> => {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "" });
+    if (jsonData.length === 0) {
+      throw new Error("Excel file is empty or has no data rows");
+    }
+    const xlsxHeaders = Object.keys(jsonData[0]);
+    const rows: ParsedRow[] = jsonData.map((row) => {
+      const parsed: ParsedRow = {};
+      xlsxHeaders.forEach((header) => {
+        parsed[header] = String(row[header] ?? "");
+      });
+      return parsed;
+    });
+    return { headers: xlsxHeaders, rows };
+  };
+
   const handleFileSelect = async (file: File) => {
     setUploadedFile(file);
     setIsUploading(true);
@@ -81,27 +119,23 @@ export default function Upload() {
     }, 100);
 
     try {
-      const text = await file.text();
-      const lines = text.split("\n").filter((line) => line.trim());
-      
-      if (lines.length < 2) {
-        throw new Error("CSV file must have at least a header row and one data row");
+      const isExcel = file.name.toLowerCase().endsWith(".xlsx") || file.name.toLowerCase().endsWith(".xls");
+      let parsedHeaders: string[];
+      let parsedRows: ParsedRow[];
+
+      if (isExcel) {
+        const result = await parseXLSX(file);
+        parsedHeaders = result.headers;
+        parsedRows = result.rows;
+      } else {
+        const text = await file.text();
+        const result = parseCSV(text);
+        parsedHeaders = result.headers;
+        parsedRows = result.rows;
       }
 
-      const csvHeaders = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
-      const rows: ParsedRow[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
-        const row: ParsedRow = {};
-        csvHeaders.forEach((header, index) => {
-          row[header] = values[index] || "";
-        });
-        rows.push(row);
-      }
-
-      setHeaders(csvHeaders);
-      setParsedData(rows);
+      setHeaders(parsedHeaders);
+      setParsedData(parsedRows);
 
       const autoMapping: Record<string, string> = {};
       const mappingHints: Record<string, string[]> = {
@@ -113,7 +147,7 @@ export default function Upload() {
         project: ["project", "job", "project_name", "job_name"],
       };
 
-      csvHeaders.forEach((header) => {
+      parsedHeaders.forEach((header) => {
         const lowerHeader = header.toLowerCase();
         for (const [field, hints] of Object.entries(mappingHints)) {
           if (hints.some((hint) => lowerHeader.includes(hint))) {
@@ -136,7 +170,7 @@ export default function Upload() {
       setIsUploading(false);
       toast({
         title: "Parse Error",
-        description: "Failed to parse CSV file. Please check the format.",
+        description: error instanceof Error ? error.message : "Failed to parse file. Please check the format.",
         variant: "destructive",
       });
     }
@@ -182,7 +216,7 @@ export default function Upload() {
       <div>
         <h1 className="text-3xl font-bold" data-testid="text-upload-title">Upload Transactions</h1>
         <p className="text-muted-foreground mt-1">
-          Import transactions from a CSV file
+          Import transactions from a CSV or Excel file
         </p>
       </div>
 

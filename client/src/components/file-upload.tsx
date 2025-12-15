@@ -17,7 +17,7 @@ interface FileUploadProps {
 
 export function FileUpload({
   onFileSelect,
-  accept = ".csv",
+  accept = ".csv,.xlsx,.xls",
   maxSize = 10 * 1024 * 1024,
   isUploading = false,
   uploadProgress = 0,
@@ -38,8 +38,10 @@ export function FileUpload({
   }, []);
 
   const validateFile = (file: File): string | null => {
-    if (!file.name.endsWith(".csv")) {
-      return "Please upload a CSV file";
+    const validExtensions = [".csv", ".xlsx", ".xls"];
+    const hasValidExtension = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    if (!hasValidExtension) {
+      return "Please upload a CSV or Excel file (.csv, .xlsx, .xls)";
     }
     if (file.size > maxSize) {
       return `File size must be less than ${Math.round(maxSize / 1024 / 1024)}MB`;
@@ -152,7 +154,7 @@ export function FileUpload({
         <div className="rounded-full bg-accent p-4 mb-4">
           <Upload className="h-6 w-6 text-muted-foreground" />
         </div>
-        <h3 className="text-lg font-medium mb-1">Drop your CSV file here</h3>
+        <h3 className="text-lg font-medium mb-1">Drop your CSV or Excel file here</h3>
         <p className="text-sm text-muted-foreground mb-4">
           or click to browse your files
         </p>
@@ -170,7 +172,7 @@ export function FileUpload({
           </Button>
         </label>
         <p className="text-xs text-muted-foreground mt-4">
-          Supports CSV files up to {Math.round(maxSize / 1024 / 1024)}MB
+          Supports CSV and Excel files up to {Math.round(maxSize / 1024 / 1024)}MB
         </p>
       </CardContent>
     </Card>

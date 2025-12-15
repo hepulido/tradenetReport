@@ -1,0 +1,166 @@
+You are working on an existing JobCost AI app in this Replit workspace.
+
+STACK (DO NOT CHANGE):
+- Frontend: React 18 + TypeScript + Vite
+- UI: Tailwind + shadcn/ui
+- Router: Wouter
+- Data: TanStack React Query
+- Backend: Node.js + Express + TypeScript
+- ORM: Drizzle
+- DB: PostgreSQL (Neon/Replit)
+- API under /api
+- Single server on port 5000
+
+TASK 0 — FIRST: CODEBASE AUDIT (NO CHANGES YET)
+I need you to inspect the codebase and produce a short “Reality Check Report” in the console/logs that answers:
+1) What real inputs are currently supported end-to-end (CSV, Excel, PDF, images, email)?
+2) Which backend endpoints currently exist for upload/import/report generation (list routes)?
+3) What file types are accepted by the current upload handler?
+4) Is weekly report generation based on real transactions or only seed data? (Explain the flow.)
+5) Is the app multi-tenant? Specifically:
+   - Do companies/projects/transactions/labor_entries/weekly_reports all link to company_id?
+   - Do API endpoints consistently filter by companyId so data is isolated?
+6) What is the current onboarding flow for adding a company and generating the first report?
+
+After producing the Reality Check Report, implement the missing items below.
+
+========================================================
+TASK 1 — EXCEL SUPPORT (XLSX)
+========================================================
+If Excel is not currently supported, add it.
+- Accept .xlsx uploads in the Upload page and backend.
+- Parse XLSX using a safe library (xlsx).
+- Convert to rows that feed into the same existing column mapping + import pipeline used for CSV.
+- Ensure import_files tracks:
+  - original_filename
+  - mime_type
+  - source_type = "xlsx"
+  - created_at
+- Ensure errors are user-friendly.
+
+========================================================
+TASK 2 — PDF / IMAGE INGESTION SCAFFOLD (PRODUCTION-REALISTIC)
+========================================================
+Add “Document Upload (PDF / image)” support as a staging workflow (NOT direct to transactions).
+
+A) Add DB tables:
+- ingestion_jobs:
+  id, company_id, source_type ("pdf"|"image"|"email"), file_id (fk import_files), status ("pending"|"processing"|"completed"|"failed"), error_message, created_at, updated_at
+- ingestion_results:
+  id, ingestion_job_id, raw_text, extracted_json (jsonb), confidence_score numeric, status ("needs_review"|"approved"|"rejected"), created_at, updated_at
+
+B) Backend endpoints:
+- POST /api/ingestion/upload?companyId=  (accept pdf/png/jpg)
+  -> saves to import_files, creates ingestion_job status=pending, returns job id
+- POST /api/ingestion/process/:jobId
+  -> for now: extract text using a placeholder (if no OCR library exists, store a TODO and mark status=completed with raw_text="NOT_IMPLEMENTED")
+- GET /api/ingestion/jobs?companyId=
+- GET /api/ingestion/job/:jobId
+- POST /api/ingestion/approve/:resultId
+  -> takes extracted_json fields and creates transactions ONLY AFTER approval
+
+C) Frontend:
+Add a new tab/page under Upload called "Documents"
+- show list of ingestion jobs
+- upload pdf/image
+- show extracted fields (vendor, amount, date, category, project_guess) in a review UI
+- allow user to edit fields before approving
+- on Approve -> create transactions and link them to company/project
+
+IMPORTANT: Do not claim OCR/AI is complete if it’s not. Implement the staging and approval flow so it is real and safe.
+
+========================================================
+TASK 3 — EMAIL INGESTION (SCAFFOLD)
+========================================================
+Add an Email Ingestion placeholder that is production-realistic:
+- Add settings field: company has an ingestion email alias shown in UI (e.g., companyId@ingest.jobcost.ai) as a placeholder
+- Add backend endpoint POST /api/ingestion/email (webhook stub) that can accept:
+  companyId, subject, body, attachments (metadata)
+  -> creates ingestion_job with source_type="email"
+No actual email provider integration required yet, but structure must be ready.
+
+========================================================
+TASK 4 — MULTI-TENANT SAFETY CHECK + FIXES
+========================================================
+If any tables are missing company_id, add it with migrations.
+Enforce that ALL reads/writes require companyId and filter by it.
+- Example: you must not allow a projectId lookup without verifying the project belongs to the company.
+Add server-side guards:
+- validate companyId exists
+- validate project belongs to companyId
+- validate report belongs to companyId
+This is required for multi-company support.
+
+========================================================
+TASK 5 — ONBOARDING FLOW (SIMPLE)
+========================================================
+Add a lightweight onboarding checklist after creating/selecting a company:
+1) Create first project
+2) Upload CSV/XLSX or add first transactions
+3) Generate first weekly report
+4) (Optional) Upload documents for processing
+Use the existing UI style and keep it minimal.
+
+========================================================
+TASK 6 — EXPORT READY
+========================================================
+Add:
+- .env.example (DATABASE_URL, etc.)
+- README.md with:
+  - local install
+  - drizzle migrate
+  - seed demo data
+  - run dev
+- scripts in package.json:
+  - db:migrate
+  - db:seed
+
+FINAL REQUIREMENTS:
+- Do not break existing pages: Dashboard, Projects, Labor Hours, Reports, Upload.
+- Keep current UI patterns.
+- After changes, re-run the Reality Check Report section to confirm the app supports:
+  - CSV: yes
+  - XLSX: yes
+  - PDF/Image: staged + review flow (OCR stub ok)
+  - Multi-tenant filtering: enforced
+This prompt forces Replit to prove what exists, then adds what you’re missing without pretending the OCR/AI is done.
+
+3) The real answer to your “seed vs real data” concern
+Today (based on what you described earlier)
+Yes, it generates reports from real transactions if those transactions are created via CSV upload or manual entry.
+
+No, it likely does not generate reports directly from PDFs/images/emails because those ingestion pipelines usually don’t exist unless you built them.
+
+The audit step in the prompt makes Replit confirm this instead of us guessing.
+
+4) Multi-tenant: can it handle multiple companies?
+What “multi-tenant” means in your current setup
+With your schema (companies/projects/transactions/etc.), the simplest multi-tenant mode is:
+
+One login/user (even no auth)
+
+Multiple companies
+
+Every record has company_id
+
+Every API call requires companyId and filters by it
+
+That’s totally fine for “you + family” or early pilots.
+
+What can go wrong if it’s NOT enforced
+If any endpoint loads by projectId or reportId without checking companyId, you can leak data across companies. That’s why the prompt adds guards.
+
+5) How onboarding should work (simple + realistic)
+For family / first pilot:
+
+Create/select company
+
+Add 1–3 projects
+
+Upload CSV/XLSX exports
+
+Generate weekly report
+
+Optional: upload PDFs/images into “Documents” → approve → then it becomes transactions
+
+That’s realistic, production-safe, and doesn’t require full AI day one.

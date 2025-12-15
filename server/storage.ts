@@ -3,12 +3,13 @@ import { db } from "./db";
 import {
   companies, projects, vendors, transactions, laborEntries,
   weeklyReports, importFiles, importRows, companySettings, qbConnections,
+  ingestionJobs, ingestionResults,
   type Company, type Project, type Vendor, type Transaction,
   type LaborEntry, type WeeklyReport, type ImportFile, type ImportRow,
-  type CompanySettings, type QbConnection,
+  type CompanySettings, type QbConnection, type IngestionJob, type IngestionResult,
   type InsertCompany, type InsertProject, type InsertVendor, type InsertTransaction,
   type InsertLaborEntry, type InsertWeeklyReport, type InsertImportFile, type InsertImportRow,
-  type InsertCompanySettings, type InsertQbConnection,
+  type InsertCompanySettings, type InsertQbConnection, type InsertIngestionJob, type InsertIngestionResult,
   type ReportSummary
 } from "@shared/schema";
 
@@ -51,6 +52,15 @@ export interface IStorage {
   getQbConnection(companyId: string): Promise<QbConnection | undefined>;
   upsertQbConnection(companyId: string, data: Partial<InsertQbConnection>): Promise<QbConnection>;
   deleteQbConnection(companyId: string): Promise<void>;
+
+  getIngestionJobs(companyId: string): Promise<IngestionJob[]>;
+  getIngestionJob(id: string): Promise<IngestionJob | undefined>;
+  createIngestionJob(data: InsertIngestionJob): Promise<IngestionJob>;
+  updateIngestionJobStatus(id: string, status: string, errorMessage?: string): Promise<void>;
+  getIngestionResults(jobId: string): Promise<IngestionResult[]>;
+  getIngestionResult(id: string): Promise<IngestionResult | undefined>;
+  createIngestionResult(data: InsertIngestionResult): Promise<IngestionResult>;
+  approveIngestionResult(id: string): Promise<IngestionResult>;
 
   getCompanyDashboard(companyId: string, weekStart: string, weekEnd: string): Promise<{
     totalCost: number;
@@ -415,6 +425,53 @@ export class DatabaseStorage implements IStorage {
 
   async deleteQbConnection(companyId: string): Promise<void> {
     await db.delete(qbConnections).where(eq(qbConnections.companyId, companyId));
+  }
+
+  async getIngestionJobs(companyId: string): Promise<IngestionJob[]> {
+    return db.select().from(ingestionJobs).where(eq(ingestionJobs.companyId, companyId)).orderBy(desc(ingestionJobs.createdAt));
+  }
+
+  async getIngestionJob(id: string): Promise<IngestionJob | undefined> {
+    const result = await db.select().from(ingestionJobs).where(eq(ingestionJobs.id, id));
+    return result[0];
+  }
+
+  async createIngestionJob(data: InsertIngestionJob): Promise<IngestionJob> {
+    const result = await db.insert(ingestionJobs).values(data).returning();
+    return result[0];
+  }
+
+  async updateIngestionJobStatus(id: string, status: string, errorMessage?: string): Promise<void> {
+    const updateData: { status: string; processedAt?: Date; errorMessage?: string } = { status };
+    if (status === "completed" || status === "failed") {
+      updateData.processedAt = new Date();
+    }
+    if (errorMessage) {
+      updateData.errorMessage = errorMessage;
+    }
+    await db.update(ingestionJobs).set(updateData).where(eq(ingestionJobs.id, id));
+  }
+
+  async getIngestionResults(jobId: string): Promise<IngestionResult[]> {
+    return db.select().from(ingestionResults).where(eq(ingestionResults.ingestionJobId, jobId)).orderBy(desc(ingestionResults.createdAt));
+  }
+
+  async getIngestionResult(id: string): Promise<IngestionResult | undefined> {
+    const result = await db.select().from(ingestionResults).where(eq(ingestionResults.id, id));
+    return result[0];
+  }
+
+  async createIngestionResult(data: InsertIngestionResult): Promise<IngestionResult> {
+    const result = await db.insert(ingestionResults).values(data).returning();
+    return result[0];
+  }
+
+  async approveIngestionResult(id: string): Promise<IngestionResult> {
+    const result = await db.update(ingestionResults)
+      .set({ status: "approved", approvedAt: new Date() })
+      .where(eq(ingestionResults.id, id))
+      .returning();
+    return result[0];
   }
 }
 

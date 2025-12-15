@@ -8,7 +8,9 @@ A mobile-friendly construction finance analytics platform that helps contractors
 - **Projects Management**: Track multiple construction projects with cost/revenue breakdowns
 - **Weekly Reports**: Automated weekly report generation with margin analysis
 - **Labor Tracking**: Detailed labor hour and cost tracking by worker
-- **CSV Import**: Import transactions from spreadsheets
+- **CSV/Excel Import**: Import transactions from CSV or XLSX spreadsheets
+- **Document Ingestion**: Upload PDFs and images for OCR-based transaction extraction (scaffold)
+- **Email Ingestion**: Forward invoices via email for automatic processing (scaffold)
 - **Configurable Alerts**: Custom thresholds for margin, cost spikes, and large transactions
 - **Notifications**: Email, SMS, and WhatsApp notification support (configurable)
 - **QuickBooks Integration**: Connect to QuickBooks Online for automatic transaction sync (placeholder)
@@ -125,6 +127,21 @@ scripts/          # Utility scripts
 ### Settings
 - `GET /api/settings?companyId=` - Get company settings
 - `PUT /api/settings?companyId=` - Update company settings
+
+### Document Ingestion (PDF/Image)
+- `POST /api/companies/:companyId/ingestion/upload` - Upload PDF/image for OCR processing
+- `GET /api/companies/:companyId/ingestion/jobs` - List ingestion jobs
+- `GET /api/ingestion/jobs/:jobId` - Get job details with extracted results
+- `POST /api/ingestion/jobs/:jobId/approve` - Approve extracted data
+- `POST /api/ingestion/jobs/:jobId/reject` - Reject extracted data
+
+### Email Ingestion
+- `POST /api/ingestion/email` - Webhook for incoming invoice emails
+
+### File Import
+- `POST /api/companies/:companyId/import/upload` - Upload CSV/XLSX file
+- `GET /api/companies/:companyId/imports` - List import files
+- `POST /api/companies/:companyId/import/process` - Process uploaded file
 
 ### QuickBooks Integration
 - `GET /api/integrations/quickbooks/status?companyId=` - Connection status

@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, FolderKanban, FileBarChart, Upload, Settings } from "lucide-react";
+import { LayoutDashboard, FolderKanban, FileBarChart, Upload, FileText, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { href: "/projects", icon: FolderKanban, label: "Projects" },
   { href: "/reports", icon: FileBarChart, label: "Reports" },
   { href: "/upload", icon: Upload, label: "Upload" },
+  { href: "/documents", icon: FileText, label: "Docs" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ];
 

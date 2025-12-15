@@ -17,6 +17,7 @@ import ProjectDetail from "@/pages/project-detail";
 import Reports from "@/pages/reports";
 import ReportDetail from "@/pages/report-detail";
 import Upload from "@/pages/upload";
+import Documents from "@/pages/documents";
 import Labor from "@/pages/labor";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
@@ -71,6 +72,7 @@ function AppContent() {
           <Route path="/reports" component={Reports} />
           <Route path="/reports/:id" component={ReportDetail} />
           <Route path="/upload" component={Upload} />
+          <Route path="/documents" component={Documents} />
           <Route path="/labor" component={Labor} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />

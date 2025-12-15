@@ -66,9 +66,13 @@ export async function registerRoutes(
 
   app.get("/api/projects/:id", async (req, res) => {
     try {
+      const { companyId } = req.query;
       const project = await storage.getProject(req.params.id);
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
+      }
+      if (companyId && project.companyId !== companyId) {
+        return res.status(403).json({ error: "Access denied: project belongs to different company" });
       }
       res.json(project);
     } catch (error) {
@@ -78,6 +82,14 @@ export async function registerRoutes(
 
   app.get("/api/projects/:id/transactions", async (req, res) => {
     try {
+      const { companyId } = req.query;
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (companyId && project.companyId !== companyId) {
+        return res.status(403).json({ error: "Access denied: project belongs to different company" });
+      }
       const transactions = await storage.getProjectTransactions(req.params.id);
       res.json(transactions);
     } catch (error) {
@@ -87,6 +99,14 @@ export async function registerRoutes(
 
   app.get("/api/projects/:id/summary", async (req, res) => {
     try {
+      const { companyId } = req.query;
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (companyId && project.companyId !== companyId) {
+        return res.status(403).json({ error: "Access denied: project belongs to different company" });
+      }
       const summary = await storage.getProjectSummary(req.params.id);
       res.json(summary);
     } catch (error) {
@@ -183,9 +203,13 @@ export async function registerRoutes(
 
   app.get("/api/reports/:id", async (req, res) => {
     try {
+      const { companyId } = req.query;
       const report = await storage.getWeeklyReport(req.params.id);
       if (!report) {
         return res.status(404).json({ error: "Report not found" });
+      }
+      if (companyId && report.companyId !== companyId) {
+        return res.status(403).json({ error: "Access denied: report belongs to different company" });
       }
       res.json(report);
     } catch (error) {
@@ -530,6 +554,147 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Seed error:", error);
       res.status(500).json({ error: "Failed to seed demo data" });
+    }
+  });
+
+  // Ingestion Jobs (PDF/Image processing scaffold)
+  app.get("/api/companies/:companyId/ingestion/jobs", async (req, res) => {
+    try {
+      const jobs = await storage.getIngestionJobs(req.params.companyId);
+      res.json(jobs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch ingestion jobs" });
+    }
+  });
+
+  app.get("/api/ingestion/jobs/:id", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      const job = await storage.getIngestionJob(req.params.id);
+      if (!job) {
+        return res.status(404).json({ error: "Ingestion job not found" });
+      }
+      if (companyId && job.companyId !== companyId) {
+        return res.status(403).json({ error: "Access denied - job belongs to different company" });
+      }
+      const results = await storage.getIngestionResults(job.id);
+      res.json({ ...job, results });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch ingestion job" });
+    }
+  });
+
+  app.post("/api/companies/:companyId/ingestion/upload", async (req, res) => {
+    try {
+      const { filename, sourceType, fileUrl } = req.body;
+      if (!sourceType) {
+        return res.status(400).json({ error: "sourceType is required (pdf, image, email)" });
+      }
+      const job = await storage.createIngestionJob({
+        companyId: req.params.companyId,
+        sourceType,
+        filename: filename || null,
+        fileUrl: fileUrl || null,
+        status: "pending"
+      });
+      res.status(201).json(job);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create ingestion job" });
+    }
+  });
+
+  app.post("/api/ingestion/jobs/:id/process", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      const job = await storage.getIngestionJob(req.params.id);
+      if (!job) {
+        return res.status(404).json({ error: "Ingestion job not found" });
+      }
+      if (companyId && job.companyId !== companyId) {
+        return res.status(403).json({ error: "Access denied - job belongs to different company" });
+      }
+      await storage.updateIngestionJobStatus(job.id, "processing");
+      const mockResult = await storage.createIngestionResult({
+        ingestionJobId: job.id,
+        rawText: "Extracted text would appear here (OCR/PDF parsing not implemented)",
+        extractedJson: { vendor: "Sample Vendor", amount: "1000.00", date: new Date().toISOString().split('T')[0], description: "Sample extracted transaction" },
+        confidenceScore: "85.00",
+        status: "pending_review"
+      });
+      await storage.updateIngestionJobStatus(job.id, "completed");
+      res.json({ message: "Processing complete (stub)", job, result: mockResult });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to process ingestion job" });
+    }
+  });
+
+  app.post("/api/ingestion/results/:id/approve", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      const result = await storage.getIngestionResult(req.params.id);
+      if (!result) {
+        return res.status(404).json({ error: "Ingestion result not found" });
+      }
+      if (companyId) {
+        const job = await storage.getIngestionJob(result.ingestionJobId);
+        if (job && job.companyId !== companyId) {
+          return res.status(403).json({ error: "Access denied - result belongs to different company" });
+        }
+      }
+      const approved = await storage.approveIngestionResult(result.id);
+      res.json({ message: "Result approved", result: approved });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to approve result" });
+    }
+  });
+
+  app.post("/api/ingestion/results/:id/reject", async (req, res) => {
+    try {
+      const { companyId } = req.query;
+      const result = await storage.getIngestionResult(req.params.id);
+      if (!result) {
+        return res.status(404).json({ error: "Ingestion result not found" });
+      }
+      if (companyId) {
+        const job = await storage.getIngestionJob(result.ingestionJobId);
+        if (job && job.companyId !== companyId) {
+          return res.status(403).json({ error: "Access denied - result belongs to different company" });
+        }
+      }
+      res.json({ message: "Result rejected (stub - would delete or mark rejected)" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reject result" });
+    }
+  });
+
+  // Email Ingestion Webhook
+  app.post("/api/ingestion/email", async (req, res) => {
+    try {
+      const { to, from, subject, body, attachments } = req.body;
+      if (!to) {
+        return res.status(400).json({ error: "Missing 'to' field" });
+      }
+      const emailAlias = to.split("@")[0];
+      const companies = await storage.getCompanies();
+      const company = companies.find(c => c.ingestionEmailAlias === emailAlias);
+      if (!company) {
+        return res.status(404).json({ error: "No company found for email alias" });
+      }
+      const job = await storage.createIngestionJob({
+        companyId: company.id,
+        sourceType: "email",
+        filename: subject || "Email attachment",
+        fileUrl: null,
+        status: "pending"
+      });
+      res.status(201).json({
+        message: "Email received and queued for processing",
+        jobId: job.id,
+        companyId: company.id,
+        note: "Stub - actual email parsing and attachment extraction not implemented"
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to process email webhook" });
     }
   });
 

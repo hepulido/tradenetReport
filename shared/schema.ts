@@ -8,6 +8,7 @@ export const companies = pgTable("companies", {
   name: text("name").notNull(),
   email: text("email"),
   timezone: text("timezone").notNull().default("America/New_York"),
+  ingestionEmailAlias: text("ingestion_email_alias"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -18,6 +19,7 @@ export const companiesRelations = relations(companies, ({ many, one }) => ({
   laborEntries: many(laborEntries),
   weeklyReports: many(weeklyReports),
   importFiles: many(importFiles),
+  ingestionJobs: many(ingestionJobs),
   settings: one(companySettings),
   qbConnection: one(qbConnections),
 }));
@@ -174,6 +176,38 @@ export const qbConnectionsRelations = relations(qbConnections, ({ one }) => ({
   company: one(companies, { fields: [qbConnections.companyId], references: [companies.id] }),
 }));
 
+export const ingestionJobs = pgTable("ingestion_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  sourceType: text("source_type").notNull(),
+  filename: text("filename"),
+  fileUrl: text("file_url"),
+  status: text("status").notNull().default("pending"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  processedAt: timestamp("processed_at"),
+});
+
+export const ingestionJobsRelations = relations(ingestionJobs, ({ one, many }) => ({
+  company: one(companies, { fields: [ingestionJobs.companyId], references: [companies.id] }),
+  results: many(ingestionResults),
+}));
+
+export const ingestionResults = pgTable("ingestion_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ingestionJobId: varchar("ingestion_job_id").notNull().references(() => ingestionJobs.id, { onDelete: "cascade" }),
+  rawText: text("raw_text"),
+  extractedJson: jsonb("extracted_json"),
+  confidenceScore: numeric("confidence_score", { precision: 5, scale: 2 }),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  approvedAt: timestamp("approved_at"),
+});
+
+export const ingestionResultsRelations = relations(ingestionResults, ({ one }) => ({
+  ingestionJob: one(ingestionJobs, { fields: [ingestionResults.ingestionJobId], references: [ingestionJobs.id] }),
+}));
+
 export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true });
 export const insertVendorSchema = createInsertSchema(vendors).omit({ id: true, createdAt: true });
@@ -184,6 +218,8 @@ export const insertImportFileSchema = createInsertSchema(importFiles).omit({ id:
 export const insertImportRowSchema = createInsertSchema(importRows).omit({ id: true, createdAt: true });
 export const insertCompanySettingsSchema = createInsertSchema(companySettings).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertQbConnectionSchema = createInsertSchema(qbConnections).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertIngestionJobSchema = createInsertSchema(ingestionJobs).omit({ id: true, createdAt: true, processedAt: true });
+export const insertIngestionResultSchema = createInsertSchema(ingestionResults).omit({ id: true, createdAt: true, approvedAt: true });
 
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -195,6 +231,8 @@ export type InsertImportFile = z.infer<typeof insertImportFileSchema>;
 export type InsertImportRow = z.infer<typeof insertImportRowSchema>;
 export type InsertCompanySettings = z.infer<typeof insertCompanySettingsSchema>;
 export type InsertQbConnection = z.infer<typeof insertQbConnectionSchema>;
+export type InsertIngestionJob = z.infer<typeof insertIngestionJobSchema>;
+export type InsertIngestionResult = z.infer<typeof insertIngestionResultSchema>;
 
 export type Company = typeof companies.$inferSelect;
 export type Project = typeof projects.$inferSelect;
@@ -206,6 +244,8 @@ export type ImportFile = typeof importFiles.$inferSelect;
 export type ImportRow = typeof importRows.$inferSelect;
 export type CompanySettings = typeof companySettings.$inferSelect;
 export type QbConnection = typeof qbConnections.$inferSelect;
+export type IngestionJob = typeof ingestionJobs.$inferSelect;
+export type IngestionResult = typeof ingestionResults.$inferSelect;
 
 export type ReportSummary = {
   totalCost: number;

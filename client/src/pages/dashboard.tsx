@@ -13,6 +13,7 @@ import { WeekSelector } from "@/components/week-selector";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { ExecutiveSummary } from "@/components/executive-summary";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Project, WeeklyReport, ReportSummary, DashboardData } from "@/lib/types";
 import { useLocation } from "wouter";
@@ -132,6 +133,8 @@ export default function Dashboard() {
         </div>
         <WeekSelector weekStart={weekStart} onChange={setWeekStart} />
       </div>
+
+      <OnboardingChecklist />
 
       {summary ? (
         <>
