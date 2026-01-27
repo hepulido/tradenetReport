@@ -12,6 +12,17 @@ export const companies = pgTable("companies", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const ingestionJobs = pgTable("ingestion_jobs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  companyId: uuid("company_id"),
+  status: text("status").notNull(),        // "pending" | "processed" | ...
+  filename: text("filename").notNull(),
+  fileUrl: text("file_url").notNull(),
+  extractedText: text("extracted_text"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+
 export const companiesRelations = relations(companies, ({ many, one }) => ({
   projects: many(projects),
   transactions: many(transactions),
@@ -164,7 +175,7 @@ export const qbConnections = pgTable("qb_connections", {
   companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }).unique(),
   realmId: text("realm_id"),
   accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
+  refreshToken: text("refresh_token"),  
   tokenExpiresAt: timestamp("token_expires_at"),
   connectionStatus: text("connection_status").notNull().default("disconnected"),
   lastSyncAt: timestamp("last_sync_at"),
@@ -176,17 +187,6 @@ export const qbConnectionsRelations = relations(qbConnections, ({ one }) => ({
   company: one(companies, { fields: [qbConnections.companyId], references: [companies.id] }),
 }));
 
-export const ingestionJobs = pgTable("ingestion_jobs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
-  sourceType: text("source_type").notNull(),
-  filename: text("filename"),
-  fileUrl: text("file_url"),
-  status: text("status").notNull().default("pending"),
-  errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  processedAt: timestamp("processed_at"),
-});
 
 export const ingestionJobsRelations = relations(ingestionJobs, ({ one, many }) => ({
   company: one(companies, { fields: [ingestionJobs.companyId], references: [companies.id] }),

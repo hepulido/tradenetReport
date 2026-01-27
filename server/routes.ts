@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import {
   insertCompanySchema, insertProjectSchema, insertTransactionSchema,
   insertWeeklyReportSchema, insertLaborEntrySchema, insertCompanySettingsSchema,
-  type ReportSummary
+  type ReportSummary,
+  companies, ingestionJobs
 } from "@shared/schema";
 
 export async function registerRoutes(
@@ -700,3 +701,80 @@ export async function registerRoutes(
 
   return httpServer;
 }
+
+// --- SES RAW INGESTION (Lambda -> Backend) ---
+app.post("/api/ingestion/ses/raw", async (req, res) => {
+  try {
+    const token = req.header("x-ingest-token");
+    if (!process.env.INGEST_API_TOKEN || token !== process.env.INGEST_API_TOKEN) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const {
+      bucket,
+      key,
+      to,
+      from,
+      subject,
+      messageId,
+      receivedAt,
+      rawPreview,
+    } = req.body ?? {};
+
+    if (!bucket || !key) {
+      return res.status(400).json({ message: "Missing bucket/key" });
+    }
+
+    // Extract alias from recipient. Example: invoices@tradenet.tech -> "invoices"
+    const toEmail = (to || "").toString().toLowerCase().trim();
+    const localPart = toEmail.includes("@") ? toEmail.split("@")[0] : toEmail;
+
+    if (!localPart) {
+      return res.status(400).json({ message: "Missing recipient (to)" });
+    }
+
+    // Find company by ingestionEmailAlias (your schema already has this field)
+    const [company] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.ingestionEmailAlias, localPart))
+      .limit(1);
+
+    if (!company) {
+      // If no company matches, still store job as pending but with null company (or reject)
+      // I recommend storing it, so you can review later.
+      const [job] = await db
+        .insert(ingestionJobs)
+        .values({
+          companyId: null as any, // if your DB rejects null, set a "default company" or return 404
+          status: "pending",
+          filename: `${(subject || "email").toString().slice(0, 80)}.eml`,
+          fileUrl: `s3://${bucket}/${key}`,
+          extractedText: rawPreview ? String(rawPreview).slice(0, 2000) : null,
+        })
+        .returning();
+
+      return res.status(202).json({
+        message: "No company matched alias; saved job pending",
+        job,
+      });
+    }
+
+    const [job] = await db
+      .insert(ingestionJobs)
+      .values({
+        companyId: company.id,
+        status: "pending",
+        filename: `${(subject || "email").toString().slice(0, 80)}.eml`,
+        fileUrl: `s3://${bucket}/${key}`,
+        extractedText: rawPreview ? String(rawPreview).slice(0, 2000) : null,
+      })
+      .returning();
+
+    return res.json({ ok: true, job });
+  } catch (err: any) {
+    console.error("SES RAW ingestion error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
