@@ -1,0 +1,21 @@
+ROOFING MATERIALS UNLIMITED
+800 Shingle St
+Phoenix, AZ 85001
+
+Date: 08/20/2024
+
+Customer: Desert Roofers LLC
+
+Ref:    abc
+
+Qty   Description              Price      Amount
+-------------------------------------------------
+50    Architectural Shingles   $35.00     $1,750.00
+10    Underlayment Roll        $85.00     $850.00
+200   Roofing Nails (lb)       $2.50      $500.00
+5     Drip Edge 10'            $15.00     $75.00
+
+                               Subtotal   $3,175.00
+                               Tax        $254.00
+
+                               Total Due  $3,429.00

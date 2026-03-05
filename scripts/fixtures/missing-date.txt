@@ -1,0 +1,23 @@
+PACIFIC PLUMBING WHOLESALERS
+7890 Pipeline Blvd
+Los Angeles, CA 90001
+
+Invoice #PP-2024-1234
+
+Customer: West Coast Plumbing LLC
+PO Number: WCP-445
+
+Item        Description                  Qty     Price      Total
+-----------------------------------------------------------------
+PEX-100     PEX Tubing 1" x 100ft        10     $95.00     $950.00
+FIT-90      90 Degree Elbows 1"          50     $3.25      $162.50
+FIT-TEE     Tee Fittings 1"              30     $4.50      $135.00
+VLV-BALL    Ball Valve 1"                20     $15.00     $300.00
+CLAMP-1     Pipe Clamps 1"               100    $0.75      $75.00
+
+                                         Subtotal         $1,622.50
+                                         CA Sales Tax     $146.03
+
+                                         BALANCE DUE      $1,768.53
+
+Terms: Net 15

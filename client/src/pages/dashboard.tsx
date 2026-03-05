@@ -1,89 +1,99 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { startOfWeek, endOfWeek, format } from "date-fns";
-import { DollarSign, TrendingUp, AlertTriangle, BarChart3 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format } from "date-fns";
+import {
+  DollarSign,
+  AlertTriangle,
+  Building2,
+  FileText,
+  Receipt,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  Wallet,
+  Percent,
+  BarChart3,
+  ChevronRight,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
 import { useCompany } from "@/components/company-context";
-import { MetricCard } from "@/components/metric-card";
-import { ProjectCard } from "@/components/project-card";
-import { AlertItem } from "@/components/alert-item";
-import { WeekSelector } from "@/components/week-selector";
-import { DashboardSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { ExecutiveSummary } from "@/components/executive-summary";
-import { OnboardingChecklist } from "@/components/onboarding-checklist";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Project, WeeklyReport, ReportSummary, DashboardData } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
+
+interface PortfolioSummary {
+  ok: boolean;
+  totalInitialContract: number;
+  totalApprovedCOs: number;
+  totalContractValue: number;
+  totalBilled: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  collectionRate: number;
+  activeProjectCount: number;
+  totalProjectCount: number;
+  pendingCOCount: number;
+  pendingCOValue: number;
+  recentInvoices: Array<{
+    id: string;
+    invoiceNumber: string;
+    amount: string;
+    invoiceDate: string;
+    projectName: string;
+    projectId: string;
+    status: string;
+  }>;
+  recentPayments: Array<{
+    id: string;
+    amount: string;
+    paymentDate: string;
+    paymentMethod: string | null;
+    referenceNumber: string | null;
+    projectName: string;
+    projectId: string;
+  }>;
+  projectsNeedingAttention: Array<{
+    id: string;
+    name: string;
+    reason: string;
+    value?: number;
+  }>;
+}
 
 export default function Dashboard() {
   const { selectedCompany } = useCompany();
-  const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [weekStart, setWeekStart] = useState(() =>
-    startOfWeek(new Date(), { weekStartsOn: 1 })
-  );
-  const [isGenerating, setIsGenerating] = useState(false);
 
-  const weekStartStr = format(weekStart, "yyyy-MM-dd");
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
-
-  const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
-    queryKey: ["/api/companies", selectedCompany?.id, "projects"],
-    enabled: !!selectedCompany,
-  });
-
-  const { data: report, isLoading: reportLoading, refetch: refetchReport } = useQuery<WeeklyReport | null>({
-    queryKey: ["/api/companies", selectedCompany?.id, "reports", "week", weekStartStr],
-    enabled: !!selectedCompany,
-  });
-
-  const { data: liveData, isLoading: liveDataLoading } = useQuery<DashboardData>({
-    queryKey: ["/api/companies", selectedCompany?.id, `dashboard?weekStart=${weekStartStr}&weekEnd=${weekEndStr}`],
+  const { data: portfolio, isLoading } = useQuery<PortfolioSummary>({
+    queryKey: [`/api/companies/${selectedCompany?.id}/portfolio-summary`],
     enabled: !!selectedCompany,
   });
 
   const formatCurrency = (value: number) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(2)}M`;
+    }
+    if (value >= 1000) {
+      return `$${(value / 1000).toFixed(1)}K`;
+    }
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(value);
   };
 
-  const formatPercent = (value: number, revenueZero = false) => {
-    if (revenueZero) return "N/A";
-    return `${value.toFixed(1)}%`;
-  };
-
-  const handleGenerateReport = async () => {
-    if (!selectedCompany) return;
-
-    setIsGenerating(true);
-    try {
-      await apiRequest("POST", `/api/companies/${selectedCompany.id}/reports/weekly`, {
-        weekStart: weekStartStr,
-        weekEnd: weekEndStr,
-      });
-      await refetchReport();
-      queryClient.invalidateQueries({ queryKey: ["/api/companies", selectedCompany.id, "reports"] });
-      toast({
-        title: "Report Generated",
-        description: "Weekly job cost report has been created successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to generate report. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
+  const formatFullCurrency = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
   };
 
   if (!selectedCompany) {
@@ -98,176 +108,351 @@ export default function Dashboard() {
     );
   }
 
-  if (projectsLoading || reportLoading || liveDataLoading) {
+  if (isLoading) {
     return (
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-        <DashboardSkeleton />
+      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+        <div>
+          <Skeleton className="h-10 w-48 mb-2" />
+          <Skeleton className="h-5 w-72" />
+        </div>
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
       </div>
     );
   }
 
-  const reportSummary = report?.summary as ReportSummary | undefined;
-  
-  const summary = reportSummary || (liveData ? {
-    totalCost: liveData.totalCost,
-    totalRevenue: liveData.totalRevenue,
-    grossMargin: liveData.grossMargin,
-    laborCost: liveData.laborCost,
-    materialCost: liveData.materialCost,
-    equipmentCost: liveData.equipmentCost,
-    otherCost: liveData.totalCost - liveData.laborCost - liveData.materialCost - liveData.equipmentCost,
-    alerts: liveData.alerts,
-    projects: Object.fromEntries(liveData.projects.map(p => [p.id, { name: p.name, cost: p.cost, revenue: p.revenue, margin: p.margin }]))
-  } : undefined);
+  const billingProgress = portfolio && portfolio.totalContractValue > 0
+    ? (portfolio.totalBilled / portfolio.totalContractValue) * 100
+    : 0;
+
+  const collectionProgress = portfolio && portfolio.totalBilled > 0
+    ? (portfolio.totalCollected / portfolio.totalBilled) * 100
+    : 0;
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 pb-24 md:pb-8">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">
             Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Weekly job cost overview for {selectedCompany.name}
+            Portfolio overview for {selectedCompany.name}
           </p>
         </div>
-        <WeekSelector weekStart={weekStart} onChange={setWeekStart} />
+        <Button variant="outline" onClick={() => navigate("/projects")}>
+          <Building2 className="h-4 w-4 mr-2" />
+          View All Projects
+        </Button>
       </div>
 
-      <OnboardingChecklist />
 
-      {summary ? (
+      {portfolio && (
         <>
-          {liveData?.insights && (
-            <ExecutiveSummary
-              totalCost={summary.totalCost}
-              totalRevenue={summary.totalRevenue}
-              grossMargin={summary.grossMargin}
-              insights={liveData.insights}
-              alerts={summary.alerts || []}
-            />
-          )}
-
+          {/* Portfolio Overview Cards */}
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-            <MetricCard
-              label="Total Cost"
-              value={formatCurrency(summary.totalCost)}
-              icon={<DollarSign className="h-4 w-4" />}
-            />
-            <MetricCard
-              label="Revenue"
-              value={formatCurrency(summary.totalRevenue)}
-              icon={<TrendingUp className="h-4 w-4" />}
-              variant="success"
-            />
-            <MetricCard
-              label="Gross Margin"
-              value={formatPercent(summary.grossMargin, summary.totalRevenue === 0)}
-              variant={summary.totalRevenue === 0 ? "default" : summary.grossMargin >= 15 ? "success" : summary.grossMargin >= 0 ? "warning" : "danger"}
-            />
-            <MetricCard
-              label="Alerts"
-              value={String(summary.alerts?.length || 0)}
-              icon={<AlertTriangle className="h-4 w-4" />}
-              variant={summary.alerts?.length > 0 ? "warning" : "default"}
-            />
+            {/* Total Contract Value */}
+            <Card className="relative overflow-hidden">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-muted-foreground">Total Contract Value</span>
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="text-3xl font-bold">
+                  {formatCurrency(portfolio.totalContractValue)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {formatFullCurrency(portfolio.totalInitialContract)} initial
+                  {portfolio.totalApprovedCOs > 0 && (
+                    <span className="text-emerald-600"> + {formatFullCurrency(portfolio.totalApprovedCOs)} COs</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Total Billed */}
+            <Card className="relative overflow-hidden">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-muted-foreground">Total Billed</span>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="text-3xl font-bold text-blue-600">
+                  {formatCurrency(portfolio.totalBilled)}
+                </div>
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>{billingProgress.toFixed(0)}% of contract</span>
+                  </div>
+                  <Progress value={billingProgress} className="h-1.5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Total Collected */}
+            <Card className="relative overflow-hidden">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-muted-foreground">Total Collected</span>
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="text-3xl font-bold text-emerald-600">
+                  {formatCurrency(portfolio.totalCollected)}
+                </div>
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>{collectionProgress.toFixed(0)}% of billed</span>
+                  </div>
+                  <Progress
+                    value={collectionProgress}
+                    className={cn(
+                      "h-1.5",
+                      collectionProgress >= 80 ? "[&>div]:bg-emerald-500" :
+                      collectionProgress >= 50 ? "[&>div]:bg-amber-500" : "[&>div]:bg-red-500"
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Outstanding */}
+            <Card className="relative overflow-hidden">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-muted-foreground">Outstanding</span>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className={cn(
+                  "text-3xl font-bold",
+                  portfolio.totalOutstanding > 0 ? "text-amber-600" : "text-muted-foreground"
+                )}>
+                  {formatCurrency(portfolio.totalOutstanding)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {portfolio.totalContractValue > portfolio.totalBilled && (
+                    <span>{formatFullCurrency(portfolio.totalContractValue - portfolio.totalBilled)} unbilled</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+          {/* Stats Row */}
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Cost Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Labor</span>
-                    <span className="font-mono font-medium">{formatCurrency(summary.laborCost || 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Materials</span>
-                    <span className="font-mono font-medium">{formatCurrency(summary.materialCost || 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Equipment</span>
-                    <span className="font-mono font-medium">{formatCurrency(summary.equipmentCost || 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Other</span>
-                    <span className="font-mono font-medium">{formatCurrency(summary.otherCost || 0)}</span>
-                  </div>
-                  <div className="border-t pt-4 flex items-center justify-between font-medium">
-                    <span>Total</span>
-                    <span className="font-mono">{formatCurrency(summary.totalCost)}</span>
-                  </div>
+              <CardContent className="pt-4 pb-4 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{portfolio.activeProjectCount}</p>
+                  <p className="text-xs text-muted-foreground">Active Projects</p>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Alerts</CardTitle>
+              <CardContent className="pt-4 pb-4 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <Percent className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{portfolio.collectionRate.toFixed(0)}%</p>
+                  <p className="text-xs text-muted-foreground">Collection Rate</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-4 pb-4 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <Receipt className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{portfolio.pendingCOCount}</p>
+                  <p className="text-xs text-muted-foreground">Pending COs</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-4 pb-4 flex items-center gap-4">
+                <div className={cn(
+                  "h-10 w-10 rounded-full flex items-center justify-center",
+                  portfolio.pendingCOValue > 0
+                    ? "bg-amber-100 dark:bg-amber-900/30"
+                    : "bg-muted"
+                )}>
+                  <DollarSign className={cn(
+                    "h-5 w-5",
+                    portfolio.pendingCOValue > 0 ? "text-amber-600" : "text-muted-foreground"
+                  )} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">
+                    {portfolio.pendingCOValue > 0 ? formatCurrency(portfolio.pendingCOValue) : "$0"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Pending CO Value</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Activity Section */}
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+            {/* Recent Invoices */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  Recent Invoices
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {summary.alerts && summary.alerts.length > 0 ? (
+                {portfolio.recentInvoices.length > 0 ? (
                   <div className="space-y-3">
-                    {summary.alerts.map((alert, index) => (
-                      <AlertItem
-                        key={index}
-                        message={alert}
-                        type={alert.toLowerCase().includes("below") ? "danger" : "warning"}
-                      />
+                    {portfolio.recentInvoices.map((invoice) => (
+                      <div
+                        key={invoice.id}
+                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/projects/${invoice.projectId}/crm`)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium",
+                            invoice.status === "paid" ? "bg-emerald-100 text-emerald-700" :
+                            invoice.status === "sent" ? "bg-blue-100 text-blue-700" :
+                            "bg-muted text-muted-foreground"
+                          )}>
+                            {invoice.status === "paid" ? <CheckCircle2 className="h-4 w-4" /> :
+                             invoice.status === "sent" ? <ArrowRight className="h-4 w-4" /> :
+                             <Clock className="h-4 w-4" />}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">#{invoice.invoiceNumber}</p>
+                            <p className="text-xs text-muted-foreground">{invoice.projectName}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{formatFullCurrency(parseFloat(invoice.amount))}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(invoice.invoiceDate), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
-                    <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No alerts for this week</p>
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No invoices yet</p>
+                    <p className="text-xs">Create your first invoice from a project</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Payments */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-emerald-600" />
+                  Recent Payments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {portfolio.recentPayments.length > 0 ? (
+                  <div className="space-y-3">
+                    {portfolio.recentPayments.map((payment) => (
+                      <div
+                        key={payment.id}
+                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/projects/${payment.projectId}/crm`)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <DollarSign className="h-4 w-4 text-emerald-700" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">
+                              {payment.referenceNumber ? `Check #${payment.referenceNumber}` : payment.paymentMethod || "Payment"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{payment.projectName}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-emerald-600">+{formatFullCurrency(parseFloat(payment.amount))}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(payment.paymentDate), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Wallet className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No payments recorded</p>
+                    <p className="text-xs">Upload checks or record payments from projects</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {summary.projects && Object.keys(summary.projects).length > 0 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Cost by Project</h2>
-              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {Object.entries(summary.projects).map(([projectId, metrics]) => {
-                  const project = projects?.find((p) => p.id === projectId);
-                  if (!project) return null;
-                  return (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      metrics={{
-                        cost: metrics.cost,
-                        revenue: metrics.revenue,
-                        margin: metrics.margin,
-                      }}
-                      onClick={() => navigate(`/projects/${project.id}`)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
+          {/* Attention Section */}
+          {portfolio.projectsNeedingAttention.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2 text-amber-700">
+                  <AlertTriangle className="h-5 w-5" />
+                  Needs Attention
+                </CardTitle>
+                <CardDescription>
+                  Projects that may require your review
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {portfolio.projectsNeedingAttention.map((project) => (
+                    <div
+                      key={project.id + project.reason}
+                      className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-background border hover:border-primary/50 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/projects/${project.id}/crm`)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center">
+                          <AlertTriangle className="h-4 w-4 text-amber-700" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{project.name}</p>
+                          <p className="text-xs text-muted-foreground">{project.reason}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {project.value && (
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                            {formatFullCurrency(project.value)}
+                          </Badge>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
+
         </>
-      ) : (
-        <Card>
-          <CardContent className="py-16">
-            <div className="text-center">
-              <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Report for This Week</h3>
-              <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                Generate a weekly job cost report to see total costs, revenue, margins, and alerts.
-              </p>
-              <Button onClick={handleGenerateReport} disabled={isGenerating} data-testid="button-generate-report">
-                {isGenerating ? "Generating..." : "Generate Weekly Report"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   );

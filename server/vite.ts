@@ -31,8 +31,19 @@ export async function setupVite(server: Server, app: Express) {
 
   app.use(vite.middlewares);
 
+  // SPA fallback - only for GET requests to non-API paths
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
+
+    // Don't serve HTML for API routes
+    if (url.startsWith("/api")) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    // Don't serve HTML for non-GET requests
+    if (req.method !== "GET") {
+      return res.status(404).json({ message: "Not found" });
+    }
 
     try {
       const clientTemplate = path.resolve(

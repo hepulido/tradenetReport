@@ -1,0 +1,36 @@
+Foundation Building Materials
+1234 Industrial Drive
+Phoenix, AZ 85001
+Tel: (602) 555-1234
+
+Invoice Number: 120040985-00
+Invoice Date: 01/15/2024
+Due Date: 02/15/2024
+
+Bill To:
+ABC Construction Company
+5678 Builder Ln
+Mesa, AZ 85201
+
+Customer PO: PO-2024-001
+Job: Downtown Office Renovation
+
+QTY       DESCRIPTION                           UNIT PRICE    AMOUNT
+--------------------------------------------------------------------------------
+50        5/8" Type X Drywall 4x8              $12.50        $625.00
+25        1/2" Drywall 4x8                     $10.00        $250.00
+100       Metal Studs 3-5/8" x 10'             $8.50         $850.00
+200       Drywall Screws 1-1/4" (box)          $4.75         $950.00
+10        Joint Compound 5-gal                  $22.00        $220.00
+50        Drywall Tape 500'                    $6.50         $325.00
+30        Corner Bead 10'                      $3.25         $97.50
+15        2x4x8' Lumber                        $5.99         $89.85
+20        Plywood 3/4" 4x8                     $45.00        $900.00
+
+                                              Subtotal:     $4,307.35
+                                              Tax (8.1%):   $348.79
+                                              Shipping:     $497.35
+
+                                              AMOUNT DUE:   $5,153.49
+
+Thank you for your business!

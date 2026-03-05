@@ -1,0 +1,18 @@
+S u n s h l n e   B u l | d e r s   S u p p | y
+
+l n v o l c e  N o :  SBS-99001
+D a t e:  09/05/2024
+
+C u s t 0 m e r:  Quality Construction Co.
+
+0 t y   D e s c r l p t l 0 n               P r l c e      A m o u n t
+------------------------------------------------------------------------
+25     2x6x12 Lumber                         $12.00         $300.00
+100    Deck Screws 3" (box)                  $8.50          $850.00
+15     Pressure Treated 4x4x10               $22.00         $330.00
+8      Joist Hangers                         $4.25          $34.00
+
+                                   S u b t o t a l          $1,514.00
+                                   T a x  (7%)              $105.98
+
+                                   T 0 T A L                $1,619.98

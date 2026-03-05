@@ -12,8 +12,20 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // SPA fallback - only for GET requests to non-API paths
+  app.use("*", (req, res) => {
+    const url = req.originalUrl;
+
+    // Don't serve HTML for API routes
+    if (url.startsWith("/api")) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    // Don't serve HTML for non-GET requests
+    if (req.method !== "GET") {
+      return res.status(404).json({ message: "Not found" });
+    }
+
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

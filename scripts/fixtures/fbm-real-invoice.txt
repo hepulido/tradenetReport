@@ -1,0 +1,36 @@
+Foundation Building Materials
+1234 Commerce Drive
+Phoenix, AZ 85001
+(602) 555-1234
+
+Invoice Number: 120040985-00
+Invoice Date: 01/15/2024
+Due Date: 02/15/2024
+Page 1 of 1
+
+Bill To:                          Ship To:
+ABC Construction LLC              Job Site - Downtown Tower
+456 Main Street                   789 Project Avenue
+Phoenix, AZ 85002                 Phoenix, AZ 85003
+
+Customer PO: PO-2024-001
+Job Name: Downtown Office Tower
+
+QTY    PRODUCT CODE      DESCRIPTION                           UNIT    PRICE      AMOUNT
+------------------------------------------------------------------------------------------------
+5.00   CGAHD8906F08G     ARM DRYWALL 12' MAIN 8" OC FACETED   CTN     $208.80    $1,044.00
+16.00  CGAXL8945P        ARMSTRONG XL CEILING PANEL 2X4       CTN     $142.27    $2,276.35
+8.00   CGAFZRC2AG        CEILING GRID MAIN TEE 12FT           EA      $18.50     $148.00
+25.00  CGADW58X48        DRYWALL 5/8" TYPE X 4X8              SHT     $18.75     $468.75
+10.00  CGAJC5G           USG JOINT COMPOUND 5GAL              EA      $24.00     $240.00
+4.00   CGATAPE500        DRYWALL TAPE 500FT ROLL              ROLL    $8.00      $32.00
+100    CGASCREW158       DRYWALL SCREWS 1-5/8" 1LB BOX        BOX     $6.50      $650.00
+
+                                                            SUBTOTAL:           $4,859.10
+                                                            TAX (6.06%):        $294.39
+                                                            ================================
+                                                            INVOICE TOTAL:      $5,153.49
+
+AMOUNT DUE: $5,153.49
+
+Thank you for your business!

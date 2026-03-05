@@ -1,5 +1,7 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import type { Company } from "@/lib/types";
+import { useAuth } from "@/components/auth-context";
+import type { Role } from "@/lib/permissions";
 
 type CompanyContextType = {
   selectedCompany: Company | null;
@@ -8,6 +10,9 @@ type CompanyContextType = {
   setCompanies: (companies: Company[]) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
+  // New role-related properties
+  currentCompany: Company | null;
+  currentRole: Role | null;
 };
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
@@ -16,6 +21,16 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+
+  // Get the current role for the selected company
+  const currentRole = useMemo<Role | null>(() => {
+    if (!user || !selectedCompany) return null;
+    const userCompany = user.companies?.find(
+      (uc) => uc.companyId === selectedCompany.id
+    );
+    return (userCompany?.role as Role) || null;
+  }, [user, selectedCompany]);
 
   useEffect(() => {
     const storedCompanyId = localStorage.getItem("selectedCompanyId");
@@ -46,6 +61,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         setCompanies,
         isLoading,
         setIsLoading,
+        currentCompany: selectedCompany,
+        currentRole,
       }}
     >
       {children}

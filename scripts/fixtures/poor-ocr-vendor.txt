@@ -1,0 +1,20 @@
+Invoice Number Invoice Date Due Date
+88765432 04/22/2024 05/22/2024
+
+Bl|ue Ri|dge Bu||ders Supp|y
+1234 Supply Road
+Asheville, NC 28801
+
+Ship To:
+Customer ABC
+123 Main St
+
+Qty Description Unit Price Amount
+-------------------------------------------
+50 Lumber 2x4x8 $4.99 $249.50
+25 Plywood 4x8 $32.00 $800.00
+10 Paint Primer 1gal $18.50 $185.00
+
+Subtotal $1,234.50
+Tax $86.42
+TOTAL $1,320.92

@@ -1,0 +1,17 @@
+HomeDepot Pro
+Customer Invoice
+
+Invoice Number: HD-99887766
+Invoice Date: 05/15/2024
+Due Date: 06/14/2024
+
+Bill To:
+Smith Home Renovations
+456 Contractor Way
+Atlanta, GA 30301
+
+Various building materials per attached list
+
+Total Amount: $2,456.78
+
+Thank you for your business!

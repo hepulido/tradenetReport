@@ -1,0 +1,20 @@
+Return Service Requested
+
+PRESORTED STANDARD
+US POSTAGE PAID
+PERMIT NO 123
+
+PO BOX 744
+ANYTOWN USA 12345
+
+NE 30TH AVE APT 201
+SOME CITY FL 33123
+
+Invoice Number Invoice Date Due Date
+123456 01/15/2024 02/15/2024
+
+Qty Description Amount
+1 Some item 100.00
+2 Another item 200.00
+
+TOTAL: $300.00

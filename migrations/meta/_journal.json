@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1769656319519,
+      "tag": "0000_short_scourge",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1769656617502,
+      "tag": "0001_black_doctor_faustus",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771798486952,
+      "tag": "0002_unique_daimon_hellstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772072797671,
+      "tag": "0003_bizarre_nextwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772245323489,
+      "tag": "0004_far_leopardon",
+      "breakpoints": true
+    }
+  ]
+}

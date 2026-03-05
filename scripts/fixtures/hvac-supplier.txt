@@ -1,0 +1,39 @@
+CLIMATE CONTROL DISTRIBUTORS
+HVAC Equipment & Supplies
+2200 Ventilation Way
+Houston, TX 77001
+(713) 555-8800
+
+INVOICE
+
+Invoice #: CCD-2024-00456
+Date: 06/01/2024
+Terms: Net 30
+
+Sold To:
+Cool Air Services Inc.
+1500 AC Road
+Houston, TX 77002
+
+Job: Memorial Hospital HVAC Upgrade
+Customer PO: CAS-2024-789
+
+Qty    Item Code      Description                        Unit Price    Extended
+================================================================================
+4      AC-5TON        5 Ton AC Unit 16 SEER             $2,450.00     $9,800.00
+8      DUCT-16        16" Flex Duct 25ft                $125.00       $1,000.00
+12     DIFF-10        10" Diffuser                      $45.00        $540.00
+24     REG-8          8x8 Register                      $22.50        $540.00
+4      THERM-PRO      Programmable Thermostat           $89.99        $359.96
+1      FILTER-CASE    MERV 13 Filters (case of 12)      $156.00       $156.00
+
+                                                        Subtotal:     $12,395.96
+                                                        Sales Tax:    $1,022.67
+                                                        Freight:      $350.00
+
+                                                        INVOICE TOTAL: $13,768.63
+
+Please remit payment to:
+Climate Control Distributors
+PO Box 7890
+Houston, TX 77001

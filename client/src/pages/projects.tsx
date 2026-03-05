@@ -153,7 +153,7 @@ export default function Projects() {
                   <ProjectCard
                     key={project.id}
                     project={project}
-                    onClick={() => navigate(`/projects/${project.id}`)}
+                    onClick={() => navigate(`/projects/${project.id}/crm`)}
                   />
                 ))}
               </div>
@@ -173,7 +173,7 @@ export default function Projects() {
                   <ProjectCard
                     key={project.id}
                     project={project}
-                    onClick={() => navigate(`/projects/${project.id}`)}
+                    onClick={() => navigate(`/projects/${project.id}/crm`)}
                   />
                 ))}
               </div>
@@ -193,7 +193,7 @@ export default function Projects() {
                   <ProjectCard
                     key={project.id}
                     project={project}
-                    onClick={() => navigate(`/projects/${project.id}`)}
+                    onClick={() => navigate(`/projects/${project.id}/crm`)}
                   />
                 ))}
               </div>

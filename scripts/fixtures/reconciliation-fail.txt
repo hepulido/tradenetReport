@@ -1,0 +1,25 @@
+Metro Electrical Supply
+5500 Electric Ave
+Chicago, IL 60601
+
+Invoice: EL-2024-5567
+Date: 02/28/2024
+
+Customer: Downtown Electric
+PO: DE-789
+
+Qty   Description                    Price     Extended
+--------------------------------------------------------
+100   12/2 Romex NM-B 250ft         $89.99    $8,999.00
+50    Outlet Boxes                   $2.50     $125.00
+50    GFCI Receptacles              $18.99    $949.50
+25    Circuit Breakers 20A          $12.50    $312.50
+10    Panel Covers                   $45.00    $450.00
+
+SUBTOTAL                                      $10,836.00
+TAX                                           $650.16
+SHIPPING                                      $125.00
+
+INVOICE TOTAL                                 $12,500.00
+
+Note: This total includes a $888.84 discount applied.

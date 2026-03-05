@@ -1,0 +1,35 @@
+ACME Supply Co.
+Building Materials Since 1952
+999 Commerce Way
+Denver, CO 80201
+
+INVOICE
+
+Invoice #: INV-88321
+Date: 03/10/2024
+Terms: Net 30
+
+Ship To:
+Rocky Mountain Builders
+4567 Mountain View Rd
+Boulder, CO 80301
+
+Job Name: Mountain Lodge Project
+PO #: RMB-2024-156
+
+Item          Description                    Qty    Unit Price    Extended
+===========================================================================
+STU-358       Metal Stud 3-5/8" 20ga         100    $7.25         $725.00
+TRK-358       Metal Track 3-5/8"              50    $4.50         $225.00
+DW-58X        Drywall 5/8" Type X 4x12        75    $18.50        $1,387.50
+JC-5G         Joint Compound 5 Gal            20    $24.99        $499.80
+TAPE-500      Paper Tape 500'                 30    $5.99         $179.70
+SCR-114       Drywall Screws 1-1/4"           15    $12.50        $187.50
+
+                                             SUBTOTAL          $3,204.50
+                                             SALES TAX (7%)    $224.32
+
+                                             TOTAL DUE         $3,428.82
+
+Payment Terms: Net 30 Days
+Make checks payable to: ACME Supply Co.

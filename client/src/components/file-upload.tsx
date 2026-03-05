@@ -97,16 +97,6 @@ export function FileUpload({
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-                {uploadStatus === "idle" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={clearFile}
-                    data-testid="button-clear-file"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {formatFileSize(selectedFile.size)}
