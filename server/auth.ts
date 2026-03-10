@@ -7,16 +7,23 @@ function initializeFirebaseAdmin() {
   if (admin.apps.length) return true;
 
   // Option 1: Service account JSON from env
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-    : null;
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
-  if (serviceAccount) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    console.log("[auth] Firebase Admin initialized with service account");
-    return true;
+      // Fix escaped newlines in private_key (common issue with env vars)
+      if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      console.log("[auth] Firebase Admin initialized with service account");
+      return true;
+    } catch (error) {
+      console.error("[auth] Failed to parse FIREBASE_SERVICE_ACCOUNT:", error);
+    }
   }
 
   // Option 2: Application Default Credentials (gcloud auth application-default login)
