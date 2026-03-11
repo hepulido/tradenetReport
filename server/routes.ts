@@ -7839,32 +7839,70 @@ app.post("/api/upload/extract-ai", uploadUniversal.single("file"), async (req, r
           const ocrResult = await textractSmartOCR(bucket, s3Key, req.file.mimetype);
           extractedText = ocrResult.text;
 
-          const parsed = parseOcrToStructured(extractedText);
+          // Use Claude to structure the Textract OCR text (better than rule-based parsing)
+          const llmClient = getLlmClient();
+          if (llmClient && extractedText.length > 50) {
+            console.log("[extract-ai] Using Claude to structure Textract OCR output...");
+            const llmResult = await llmClient.extractInvoice({
+              ocrText: extractedText,
+              mode: "full",
+            });
 
-          extractedData = {
-            type: mode === "receipt" ? "receipt" : mode === "contract" ? "contract" : "invoice",
-            fields: [] as Array<{ field: string; value: string | number | null; confidence?: number }>,
-            lineItems: parsed.lineItems || [],
-            rawText: extractedText.substring(0, 1000),
-          };
+            if (llmResult.success && llmResult.data) {
+              const inv = llmResult.data;
+              console.log("[extract-ai] Claude extraction from Textract successful");
 
-          if (parsed.totals) {
-            const possibleTotals = parsed.totals.possibleTotals || [];
-            if (possibleTotals.length > 0) {
-              extractedData.fields.push({ field: "total", value: possibleTotals[0], confidence: 0.7 });
-            }
-            const totals = parsed.totals as any;
-            if (totals.taxTotal) {
-              extractedData.fields.push({ field: "tax", value: totals.taxTotal, confidence: 0.8 });
+              const fields: Array<{ field: string; value: string | number | null; confidence?: number }> = [];
+              if (inv.vendor) fields.push({ field: "vendor", value: inv.vendor, confidence: 0.9 });
+              if (inv.invoiceNumber) fields.push({ field: "invoiceNumber", value: inv.invoiceNumber, confidence: 0.9 });
+              if (inv.invoiceDate) fields.push({ field: "date", value: inv.invoiceDate, confidence: 0.9 });
+              if (inv.total) fields.push({ field: "total", value: inv.total, confidence: 0.9 });
+              if (inv.subtotal) fields.push({ field: "subtotal", value: inv.subtotal, confidence: 0.8 });
+              if (inv.tax) fields.push({ field: "tax", value: inv.tax, confidence: 0.8 });
+              if (inv.customerPo) fields.push({ field: "project", value: inv.customerPo, confidence: 0.9 });
+
+              extractedData = {
+                type: mode === "receipt" ? "receipt" : mode === "contract" ? "contract" : "invoice",
+                fields,
+                lineItems: inv.lineItems || [],
+                rawText: extractedText.substring(0, 1000),
+                multipleInvoicesDetected: inv.multipleInvoicesDetected,
+              };
+            } else {
+              console.warn("[extract-ai] Claude extraction failed, falling back to rule-based:", llmResult.error);
             }
           }
 
-          if (parsed.vendorOrClient) {
-            extractedData.fields.push({ field: "vendor", value: parsed.vendorOrClient, confidence: 0.6 });
-          }
+          // Fallback to rule-based parsing if Claude is unavailable or failed
+          if (!extractedData) {
+            console.log("[extract-ai] Using rule-based parsing for Textract output");
+            const parsed = parseOcrToStructured(extractedText);
 
-          if (parsed.projectName) {
-            extractedData.fields.push({ field: "project", value: parsed.projectName, confidence: 0.5 });
+            extractedData = {
+              type: mode === "receipt" ? "receipt" : mode === "contract" ? "contract" : "invoice",
+              fields: [] as Array<{ field: string; value: string | number | null; confidence?: number }>,
+              lineItems: parsed.lineItems || [],
+              rawText: extractedText.substring(0, 1000),
+            };
+
+            if (parsed.totals) {
+              const possibleTotals = parsed.totals.possibleTotals || [];
+              if (possibleTotals.length > 0) {
+                extractedData.fields.push({ field: "total", value: possibleTotals[0], confidence: 0.7 });
+              }
+              const totals = parsed.totals as any;
+              if (totals.taxTotal) {
+                extractedData.fields.push({ field: "tax", value: totals.taxTotal, confidence: 0.8 });
+              }
+            }
+
+            if (parsed.vendorOrClient) {
+              extractedData.fields.push({ field: "vendor", value: parsed.vendorOrClient, confidence: 0.6 });
+            }
+
+            if (parsed.projectName) {
+              extractedData.fields.push({ field: "project", value: parsed.projectName, confidence: 0.5 });
+            }
           }
 
           await storage.updateIngestionJobExtractedText(job.id, extractedText);
