@@ -6910,7 +6910,7 @@ app.get("/api/projects/:projectId/project-invoices", async (req, res) => {
 
     res.json({
       ok: true,
-      projectInvoices: invoicesWithPayments,
+      invoices: invoicesWithPayments,
       summary: {
         totalInvoiced,
         totalCollected,

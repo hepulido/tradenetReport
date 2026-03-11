@@ -334,9 +334,8 @@ export function CreateInvoiceDialog({
         title: "Invoice Created",
         description: `Invoice #${invoiceNumber} for ${formatCurrency(calculatedAmount)} has been created.`,
       });
-      // Invalidate all relevant queries
+      // Invalidate project invoices query (the main one used by billing tab)
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/project-invoices`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/invoices`] });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/change-orders`] });
       onOpenChange(false);
       onSuccess?.();

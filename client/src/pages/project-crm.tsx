@@ -387,12 +387,13 @@ function OverviewTab({
     enabled: showLaborSheet,
   });
 
-  // Fetch budget line items for comparison (materials budgets)
+  // Fetch budget line items for comparison (materials budgets) - always fetch for overview display
   const { data: budgetsData } = useQuery<{ ok: boolean; budgets: ProjectBudget[] }>({
     queryKey: [`/api/projects/${projectId}/budgets`],
-    enabled: showMaterialsSheet,
+    enabled: !!projectId,
   });
   const activeBudget = budgetsData?.budgets?.find(b => b.status === "active") || budgetsData?.budgets?.[0];
+  const budgetedAmount = activeBudget ? parseFloat(activeBudget.estimatedCost || "0") : 0;
 
   // Fetch budget line items for active budget
   const { data: budgetLineItemsData } = useQuery<{ ok: boolean; budget: ProjectBudget; lineItems: BudgetLineItem[] }>({
@@ -523,7 +524,15 @@ function OverviewTab({
       {/* Cost Breakdown */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Cost Breakdown</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Cost Breakdown</CardTitle>
+            {budgetedAmount > 0 && (
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Estimated (Takeoff)</p>
+                <p className="text-sm font-semibold text-blue-600">{formatCurrency(budgetedAmount)}</p>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -569,6 +578,19 @@ function OverviewTab({
               <p className="font-semibold">Total Costs</p>
               <p className="text-xl font-bold">{formatCurrency(totalCosts)}</p>
             </div>
+            {budgetedAmount > 0 && (
+              <div className="pt-3 mt-3 border-t">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Budget vs Actual</span>
+                  <span className={totalCosts <= budgetedAmount ? "text-emerald-600 font-medium" : "text-red-600 font-medium"}>
+                    {totalCosts <= budgetedAmount
+                      ? `${formatCurrency(budgetedAmount - totalCosts)} under budget`
+                      : `${formatCurrency(totalCosts - budgetedAmount)} over budget`
+                    }
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -944,7 +966,6 @@ function BillingTab({
     onSuccess: () => {
       toast({ title: "Invoice updated successfully" });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/project-invoices`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/invoices`] });
       setIsEditingInvoice(false);
       setSelectedInvoice(null);
     },
@@ -3004,9 +3025,9 @@ export default function ProjectCRM() {
   });
   const changeOrders = changeOrdersData?.changeOrders || [];
 
-  // Fetch project invoices
+  // Fetch project invoices (TO GC)
   const { data: invoicesData } = useQuery<{ ok: boolean; invoices: ProjectInvoice[] }>({
-    queryKey: [`/api/projects/${projectId}/invoices`],
+    queryKey: [`/api/projects/${projectId}/project-invoices`],
     enabled: !!projectId,
   });
   const invoices = invoicesData?.invoices || [];
