@@ -7988,6 +7988,77 @@ app.post("/api/upload/extract-ai", uploadUniversal.single("file"), async (req, r
             } else {
               console.warn("[extract-ai] No LLM client configured");
             }
+          } else {
+            // pdf-parse failed or returned no text - use Claude's direct PDF processing
+            console.log("[extract-ai] pdf-parse failed, trying Claude direct PDF processing...");
+            const llmConfig = getLlmConfig();
+            if (llmConfig.configured && llmConfig.provider === "anthropic") {
+              try {
+                const Anthropic = (await import("@anthropic-ai/sdk")).default;
+                const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+                const base64Pdf = req.file.buffer.toString("base64");
+
+                console.log("[extract-ai] Sending PDF directly to Claude...");
+
+                const response = await client.messages.create({
+                  model: llmConfig.model,
+                  max_tokens: 2000,
+                  messages: [{
+                    role: "user",
+                    content: [
+                      {
+                        type: "document",
+                        source: { type: "base64", media_type: "application/pdf", data: base64Pdf },
+                      },
+                      {
+                        type: "text",
+                        text: `Extract invoice/receipt data from this PDF document. Return ONLY valid JSON with this structure:
+{
+  "vendor": string|null,
+  "invoiceNumber": string|null,
+  "invoiceDate": string|null (YYYY-MM-DD format),
+  "total": number|null,
+  "subtotal": number|null,
+  "tax": number|null,
+  "customerPo": string|null,
+  "lineItems": [{"description": string, "quantity": number|null, "unitPrice": number|null, "lineAmount": number|null, "category": string|null}]
+}
+Return ONLY valid JSON, no markdown code blocks or explanation.`,
+                      },
+                    ],
+                  }],
+                });
+
+                const textContent = response.content.find((c: any) => c.type === "text");
+                if (textContent && textContent.type === "text") {
+                  const { extractJsonObject, coerceNumericFields } = await import("./llmClient");
+                  let parsed = extractJsonObject(textContent.text);
+                  parsed = coerceNumericFields(parsed);
+
+                  extractedData = {
+                    type: mode === "receipt" ? "receipt" : "invoice",
+                    fields: [] as Array<{ field: string; value: string | number | null; confidence?: number }>,
+                    lineItems: parsed.lineItems || [],
+                    rawText: textContent.text.substring(0, 500),
+                  };
+
+                  if (parsed.vendor) extractedData.fields.push({ field: "vendor", value: parsed.vendor, confidence: 0.9 });
+                  if (parsed.invoiceNumber) extractedData.fields.push({ field: "invoiceNumber", value: parsed.invoiceNumber, confidence: 0.9 });
+                  if (parsed.invoiceDate) extractedData.fields.push({ field: "date", value: parsed.invoiceDate, confidence: 0.9 });
+                  if (parsed.total) extractedData.fields.push({ field: "total", value: parsed.total, confidence: 0.9 });
+                  if (parsed.subtotal) extractedData.fields.push({ field: "subtotal", value: parsed.subtotal, confidence: 0.8 });
+                  if (parsed.tax) extractedData.fields.push({ field: "tax", value: parsed.tax, confidence: 0.8 });
+                  if (parsed.customerPo) extractedData.fields.push({ field: "project", value: parsed.customerPo, confidence: 0.7 });
+
+                  console.log(`[extract-ai] Direct PDF extraction successful: vendor=${parsed.vendor}, total=${parsed.total}`);
+                }
+              } catch (pdfErr: any) {
+                console.error("[extract-ai] Direct PDF processing failed:", pdfErr.message);
+              }
+            } else {
+              console.warn("[extract-ai] No Anthropic API configured for direct PDF processing");
+            }
           }
         } else if (isImage) {
           // For images, we need vision API - use Claude with base64 image
