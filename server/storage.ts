@@ -186,6 +186,7 @@ export interface IStorage {
   // Project matching heuristics
   findProjectByExternalRef(companyId: string, externalRef: string): Promise<Project | undefined>;
   updateProject(id: string, data: Partial<{ name: string; externalRef: string; status: string }>): Promise<Project>;
+  deleteProject(id: string): Promise<void>;
 
   // ========== PROJECT BUDGETS (TAKEOFFS) ==========
   createProjectBudget(data: InsertProjectBudget): Promise<ProjectBudget>;
@@ -1252,6 +1253,16 @@ export class DatabaseStorage implements IStorage {
       .where(eq(projects.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    // Delete related data first (cascade)
+    await db.delete(projectBudgets).where(eq(projectBudgets.projectId, id));
+    await db.delete(projectInvoices).where(eq(projectInvoices.projectId, id));
+    await db.delete(payrollEntries).where(eq(payrollEntries.projectId, id));
+    await db.delete(dailyLogs).where(eq(dailyLogs.projectId, id));
+    // Finally delete the project
+    await db.delete(projects).where(eq(projects.id, id));
   }
 
   // ========== PROJECT BUDGETS (TAKEOFFS) ==========

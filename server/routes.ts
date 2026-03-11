@@ -7172,6 +7172,16 @@ app.patch("/api/projects/:id", async (req, res) => {
   }
 });
 
+// Delete a project
+app.delete("/api/projects/:id", async (req, res) => {
+  try {
+    await storage.deleteProject(req.params.id);
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ========== WORKERS ==========
 
 // Get all workers for a company

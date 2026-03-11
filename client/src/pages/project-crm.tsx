@@ -55,6 +55,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
@@ -88,7 +92,17 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -3026,6 +3040,9 @@ export default function ProjectCRM() {
   });
   const materialCost = materialsSummary?.totalMaterials || 0;
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { toast } = useToast();
+
   // Update percent complete mutation
   const updatePercentMutation = useMutation({
     mutationFn: async (percentComplete: number) => {
@@ -3039,6 +3056,43 @@ export default function ProjectCRM() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+    },
+  });
+
+  // Update project status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async (status: string) => {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Status updated" });
+    },
+  });
+
+  // Delete project mutation
+  const deleteProjectMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete project");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Project deleted" });
+      navigate("/projects");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete project", variant: "destructive" });
     },
   });
 
@@ -3100,9 +3154,52 @@ export default function ProjectCRM() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>Edit Project</DropdownMenuItem>
-                <DropdownMenuItem>View GC Details</DropdownMenuItem>
-                <DropdownMenuItem>Export Report</DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Badge variant="outline" className={cn("mr-2 text-xs", getStatusColor(project.status))}>
+                      {project.status}
+                    </Badge>
+                    Change Status
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem
+                      onClick={() => updateStatusMutation.mutate("active")}
+                      disabled={project.status === "active"}
+                    >
+                      <Badge variant="outline" className="mr-2 bg-green-50 text-green-700 border-green-200">active</Badge>
+                      Active
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => updateStatusMutation.mutate("completed")}
+                      disabled={project.status === "completed"}
+                    >
+                      <Badge variant="outline" className="mr-2 bg-blue-50 text-blue-700 border-blue-200">completed</Badge>
+                      Completed
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => updateStatusMutation.mutate("on_hold")}
+                      disabled={project.status === "on_hold"}
+                    >
+                      <Badge variant="outline" className="mr-2 bg-yellow-50 text-yellow-700 border-yellow-200">on_hold</Badge>
+                      On Hold
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => updateStatusMutation.mutate("cancelled")}
+                      disabled={project.status === "cancelled"}
+                    >
+                      <Badge variant="outline" className="mr-2 bg-red-50 text-red-700 border-red-200">cancelled</Badge>
+                      Cancelled
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Project
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -3188,6 +3285,32 @@ export default function ProjectCRM() {
           </div>
         </Tabs>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{project.name}"? This will also delete all related invoices, payroll entries, and daily logs. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteProjectMutation.mutate()}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteProjectMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
