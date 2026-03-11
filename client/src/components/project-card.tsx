@@ -21,12 +21,23 @@ export function ProjectCard({ project, metrics, onClick }: ProjectCardProps) {
     switch (status.toLowerCase()) {
       case "active":
         return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400";
-      case "paused":
+      case "completed":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+      case "on_hold":
         return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
-      case "closed":
-        return "bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400";
+      case "cancelled":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
       default:
-        return "";
+        return "bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400";
+    }
+  };
+
+  const formatStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "on_hold":
+        return "On Hold";
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
 
@@ -75,10 +86,10 @@ export function ProjectCard({ project, metrics, onClick }: ProjectCardProps) {
         </div>
         <Badge
           variant="secondary"
-          className={cn("shrink-0 capitalize", getStatusColor(project.status))}
+          className={cn("shrink-0", getStatusColor(project.status))}
           data-testid={`badge-status-${project.id}`}
         >
-          {project.status}
+          {formatStatusLabel(project.status)}
         </Badge>
       </CardHeader>
       {metrics && (
